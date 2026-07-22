@@ -143,7 +143,7 @@
 
 ## Stage D — studio.html(ブラウザ完結の生成作業台)
 
-- [ ] **D0a: in-situパーツ生成プロンプト一式の作成(机上レビュー付き)**
+- [x] **D0a: in-situパーツ生成プロンプト一式の作成(机上レビュー付き)**
   - 触る: `prompts/part_insitu_v1.txt`(新規、`{PART_NAME}`/`{PART_DESC}`/
     `{MARGIN_NOTE}`等のプレースホルダー付きテンプレート)、必要なら
     白/黒背景版の差分指示
