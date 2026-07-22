@@ -183,6 +183,10 @@
         "hairLag": {
           "blendMarginPx": 25,
           "lagRate": 7
+        },
+        "parallax": {
+          "x": 20,
+          "y": 12
         }
       }
     },
@@ -206,6 +210,10 @@
         "hairLag": {
           "blendMarginPx": 50,
           "lagRate": 6
+        },
+        "parallax": {
+          "x": 25,
+          "y": 12
         }
       }
     },
@@ -229,6 +237,10 @@
         "hairLag": {
           "blendMarginPx": 50,
           "lagRate": 6.8
+        },
+        "parallax": {
+          "x": 25,
+          "y": 12
         }
       }
     },
@@ -251,7 +263,13 @@
         }
       },
       "defaultState": "open",
-      "drawOrderHint": 50
+      "drawOrderHint": 50,
+      "motionParams": {
+        "parallax": {
+          "x": 40,
+          "y": 25
+        }
+      }
     },
     "eye_r": {
       "w": 34,
@@ -272,7 +290,13 @@
         }
       },
       "defaultState": "open",
-      "drawOrderHint": 50
+      "drawOrderHint": 50,
+      "motionParams": {
+        "parallax": {
+          "x": 40,
+          "y": 25
+        }
+      }
     },
     "mouth": {
       "w": 46,
@@ -305,7 +329,13 @@
         }
       },
       "defaultState": "rest",
-      "drawOrderHint": 51
+      "drawOrderHint": 51,
+      "motionParams": {
+        "parallax": {
+          "x": 30,
+          "y": 18
+        }
+      }
     },
     "cape": {
       "src": "public/cape.png",

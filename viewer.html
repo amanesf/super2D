@@ -30,6 +30,12 @@
   .state-group-label { font-size: 12px; color: #9aa3ad; min-width: 70px; }
   .state-group button { padding: 6px 10px; }
   .export-row { margin-top: 12px; }
+  .parallax-controls {
+    margin-top: 12px; display: flex; flex-direction: column; gap: 8px;
+    max-width: 360px; background: #24272e; border-radius: 10px; padding: 10px 14px;
+  }
+  .parallax-controls label { font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .parallax-controls input[type="range"] { width: 100%; }
 </style>
 </head>
 <body>
@@ -49,6 +55,14 @@
   <div class="controls">
     <button id="btn-wave">手を振る(肘の曲げデモ)</button>
     <button id="btn-talk">話す(口パクデモ)</button>
+  </div>
+  <div class="parallax-controls">
+    <label>頭のyaw(左右の見返り): <span id="yaw-value">0</span>°
+      <input type="range" id="yaw" min="-15" max="15" value="0" step="1" />
+    </label>
+    <label>頭のpitch(上下の見上げ/見下ろし): <span id="pitch-value">0</span>°
+      <input type="range" id="pitch" min="-15" max="15" value="0" step="1" />
+    </label>
   </div>
   <div id="state-controls"></div>
   <div class="export-row">

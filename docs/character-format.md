@@ -78,6 +78,17 @@
 左右対称のパーツ(`hair_side_l`/`hair_side_r`)は`freqHz`・`phase`・
 `lagRate`をわずかにずらし、左右が同期しないようにする
 
+**`parallax`(任意、どの`motion`にも追加できる頭のパララックス擬似3D、
+C5)**: `{ x, y }`(px/rad)。`viewer.html`のyaw/pitchスライダー(±15°)の
+値に、このパーツの`x`・`y`係数を掛けた分だけ`offsetX`・`offsetY`(前述の
+「実行時状態」)を加算する(`js/viewer.js`の`updateParallax()`)。
+スプライト切替やメッシュ変形を伴わない単純なワールド空間オフセットの
+ため、`motion`の種類を問わず併用できる。目・口・前髪・サイド髪のように
+「頭の向きに応じて少しだけずれて見える」パーツに使う。`offsetX`/
+`offsetY`は親の回転の影響を受けない(既存の`computeWorldTransforms()`の
+仕様どおり)ため、頭が大きく回転した状態での見た目の一貫性までは
+保証しない(±15°程度の小角度を想定)
+
 ### `motion: "discrete-crossfade"`(状態切替のクロスフェード、C3)
 
 `states`を持つパーツ(目・口など)の`currentState`が切り替わった瞬間、

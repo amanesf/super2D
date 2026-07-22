@@ -613,6 +613,26 @@
     }
   }
 
+  // ---- 頭のパララックス擬似3D(C5) ---------------------------------------
+  // yaw/pitch(スライダー入力、ラジアン)に応じて、顔レイヤー(目・口・
+  // 前髪・サイド髪)をmotionParams.parallaxで指定した係数(px/rad)だけ
+  // オフセットする。スプライト切替なしで±15°程度の首振り・見返りが
+  // 連続的に動いて見える(PLAN.mdの「追加アセットゼロの最大の可愛さ
+  // 向上」)。offsetX/offsetYはワールド空間にそのまま加算される
+  // (computeWorldTransforms()の既存の扱いと同じ、親の回転の影響は受けない)。
+  let yawRad = 0;
+  let pitchRad = 0;
+
+  function updateParallax() {
+    for (const [name, part] of Object.entries(manifest.parts)) {
+      const cfg = part.motionParams && part.motionParams.parallax;
+      if (!cfg) continue;
+      const s = state[name];
+      s.offsetX = (cfg.x ?? 0) * yawRad;
+      s.offsetY = (cfg.y ?? 0) * pitchRad;
+    }
+  }
+
   function updateIdle(dt) {
     t += dt;
 
@@ -728,6 +748,26 @@
       get waving() { return waving; },
       get talking() { return talking; },
     };
+  }
+
+  // ---- 頭のパララックス擬似3D用スライダー(C5) ---------------------------
+  function setupParallaxControls() {
+    const yawSlider = document.getElementById("yaw");
+    const pitchSlider = document.getElementById("pitch");
+    const yawValue = document.getElementById("yaw-value");
+    const pitchValue = document.getElementById("pitch-value");
+    if (!yawSlider || !pitchSlider) return;
+
+    yawSlider.addEventListener("input", () => {
+      const deg = Number(yawSlider.value);
+      yawRad = (deg * Math.PI) / 180;
+      if (yawValue) yawValue.textContent = deg;
+    });
+    pitchSlider.addEventListener("input", () => {
+      const deg = Number(pitchSlider.value);
+      pitchRad = (deg * Math.PI) / 180;
+      if (pitchValue) pitchValue.textContent = deg;
+    });
   }
 
   // ---- レイヤー合成(idleベース+アクションオーバーレイ、C2) --------------
@@ -875,6 +915,7 @@
     setupDropZone();
 
     const controls = setupControls();
+    setupParallaxControls();
 
     // 固定タイムステップ(120Hzサブステップ+アキュムレータ、C2)。
     // 可変dtのまま更新すると同じ入力でも実行タイミング次第で揺れが
@@ -900,6 +941,7 @@
         accumulator -= FIXED_DT;
       }
 
+      updateParallax();
       draw();
       requestAnimationFrame(frame);
     }

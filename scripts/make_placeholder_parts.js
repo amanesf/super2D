@@ -210,6 +210,7 @@ async function build() {
       motionParams: {
         followRatio: 0.6, freqHz: 0.6, phase: -0.4, ampRad: 0.05,
         hairLag: { blendMarginPx: 25, lagRate: 7 },
+        parallax: { x: 20, y: 12 },
       },
     };
   }
@@ -234,6 +235,7 @@ async function build() {
         phase: side === "l" ? -0.6 : -0.2,
         ampRad: 0.06,
         hairLag: { blendMarginPx: 50, lagRate: side === "l" ? 6 : 6.8 },
+        parallax: { x: 25, y: 12 },
       },
     };
   }
@@ -256,6 +258,7 @@ async function build() {
       states: { open: { src: srcOpen }, closed: { src: srcClosed } },
       defaultState: "open",
       drawOrderHint: 50,
+      motionParams: { parallax: { x: 40, y: 25 } },
     };
   }
 
@@ -288,6 +291,7 @@ async function build() {
       states,
       defaultState: "rest",
       drawOrderHint: 51,
+      motionParams: { parallax: { x: 30, y: 18 } },
     };
   }
 
