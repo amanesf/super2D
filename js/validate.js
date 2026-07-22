@@ -89,6 +89,7 @@
         }
         for (const stateName of stateNames) {
           const entry = part.states[stateName];
+          if (entry && entry.isRig) continue; // 意図的にsrcを持たない特別枠(B4)
           if (!entry || typeof entry.src !== "string" || entry.src.length === 0) {
             warnings.push(`パーツ"${name}"のstate"${stateName}": srcが無いため未生成(ボタン非表示になります)`);
           }

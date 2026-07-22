@@ -110,8 +110,26 @@
     return world;
   }
 
+  // body_pose(motion:sprite-select)が"rig"以外の状態のとき、通常のパーツ
+  // 合成を全部飛ばしてキャンバス全面に全身スプライト1枚を描く。
+  // 角度・アクション・ロコモーションはパーツ単位のstates切替では表現
+  // できない(全身のポーズが変わるため)ので、この専用パーツで扱う。
+  function drawBodyPoseSprite() {
+    const bodyPose = manifest.parts.body_pose;
+    if (!bodyPose || !bodyPose.states) return false;
+    const stateName = state.body_pose.currentState || bodyPose.defaultState;
+    const entry = bodyPose.states[stateName];
+    if (!entry || !entry.src) return false; // "rig"状態(またはsrc無し)は通常描画へ
+    const img = images[entry.src];
+    if (!img) return false;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return true;
+  }
+
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (drawBodyPoseSprite()) return;
+
     const world = computeWorldTransforms();
 
     for (const name of manifest.drawOrder) {
@@ -211,7 +229,8 @@
   }
 
   // ---- 状態切替UI(parts[*].statesから動的生成) ------------------------
-  // srcの無いstate(未生成の予約枠)はボタン化しない(B3受け入れ条件)。
+  // srcの無いstateは原則ボタン化しない(B3受け入れ条件)が、isRig(B4、
+  // 全身スプライトから通常リグ表示へ戻すための特別枠)だけは例外。
   function buildStateControls() {
     const container = document.getElementById("state-controls");
     if (!container) return;
@@ -219,7 +238,7 @@
 
     for (const [name, part] of Object.entries(manifest.parts)) {
       if (!part.states) continue;
-      const withSrc = Object.entries(part.states).filter(([, entry]) => entry && entry.src);
+      const withSrc = Object.entries(part.states).filter(([, entry]) => entry && (entry.src || entry.isRig));
       if (withSrc.length === 0) continue;
 
       const group = document.createElement("div");

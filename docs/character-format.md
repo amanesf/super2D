@@ -40,8 +40,8 @@
 | `parentAnchor` | string | `parent`が`null`でなければ○ | 親の`anchors`のキー名。子の`pivot`をこの点に一致させて配置する |
 | `pivot` | `[x, y]` | ○ | パーツのローカル座標系における回転・配置の基準点(px) |
 | `anchors` | object | 任意 | このパーツに子パーツを接続するための命名点のマップ(`{名前: [x, y]}`、ローカル座標)。子を持たないパーツには無い |
-| `motion` | string | ○ | ビューアがこのパーツをどう動かすかを選ぶ種別タグ。現行の値: `procedural-breathe`(呼吸)/`procedural-sway`(首振り追従)/`procedural-mesh-sway`(遅延揺れ)/`procedural-mesh-bend`(関節曲げ、現状は剛体近似)/`discrete-crossfade`(状態切替)/`static-cutout`(無変形)。**値の一覧は本書が正**であり、ビューア実装(`js/viewer.js`)側でパーツ名を直書きした分岐をしないことがB2の受け入れ条件 |
-| `states` | object | `src`が無い場合は○ | 状態名→`{src}`のマップ。`src`を持つ状態のみがビューア上で選択可能(UIボタン化の対象、B3参照)。`src`の無い状態(例: 現行のプレースホルダーにおける`arm_upper_r.states.raised`)は「将来ここに画像が入る」という予約枠であり、ビューアはボタンを出さない |
+| `motion` | string | ○ | ビューアがこのパーツをどう動かすかを選ぶ種別タグ。現行の値: `procedural-breathe`(呼吸)/`procedural-sway`(首振り追従)/`procedural-mesh-sway`(遅延揺れ)/`procedural-mesh-bend`(関節曲げ、現状は剛体近似)/`discrete-crossfade`(状態切替)/`static-cutout`(無変形)/`sprite-select`(全身1枚スプライト切替、後述)。**値の一覧は本書が正**であり、ビューア実装(`js/viewer.js`)側でパーツ名を直書きした分岐をしないことがB2の受け入れ条件 |
+| `states` | object | `src`が無い場合は○ | 状態名→`{src}`(または`{isRig: true}`、後述)のマップ。`src`を持つ状態のみがビューア上で選択可能(UIボタン化の対象、B3参照)。`src`の無い状態(例: 現行のプレースホルダーにおける`arm_upper_r.states.raised`)は「将来ここに画像が入る」という予約枠であり、ビューアはボタンを出さない。ただし`isRig: true`の状態(後述)は例外でボタン化される |
 | `motionParams` | object | 任意(`motion`が数値駆動の種別なら実質必須) | 揺れの振幅・周波数・追従比率など、`motion`種別ごとの数値パラメータ(後述)。ビューアはこの数値だけを読んで挙動を決め、パーツ名をコードに直書きしない(B2) |
 | `defaultState` | string | `states`がある場合は○ | 読込直後・リセット時に選ばれる状態名。`states`のキーに存在すること |
 | `drawOrderHint` | number | 任意 | **authoring時のみ使う値**。`scripts/make_placeholder_parts.js`が`drawOrder`配列を機械生成する際のソートキー。ビューアは実行時にこのフィールドを読まない(読むのは常にトップレベルの`drawOrder`) |
@@ -65,6 +65,28 @@
 主駆動の角度(上表)に加算される。腕のように「状態切替(`discrete-crossfade`)
 はするが、待機中は僅かに揺れてほしい」パーツに使う(現行の
 `arm_upper_r`/`arm_upper_l`/`arm_lower_r`/`arm_lower_l`)
+
+### `motion: "sprite-select"`(全身1枚スプライト切替、B4)
+
+角度(回転12方向)・アクション(idle/greet/bow等)・ロコモーション
+(walk_mid/run_mid/jump×4方向)は、パーツ単位の`states`切替では表現
+できない(全身のポーズそのものが変わるため)。これらは専用パーツ
+`body_pose`(`motion: "sprite-select"`)の`states`に、カテゴリを問わず
+フラットな1階層で持たせる(例: `angle_90`、`greet`、`walk_mid_180`)。
+
+- `body_pose`は`parent: null`・`pivot`はキャンバス中心固定の仮想パーツで、
+  通常のリグ階層(親子アンカー接続)には参加しない
+- `js/viewer.js`の`draw()`は、`state.body_pose.currentState`が指す
+  `states`エントリに`src`があれば**通常のパーツ合成を全部飛ばして
+  そのスプライト画像1枚をキャンバス全面に描く**(`drawBodyPoseSprite()`
+  が早期リターンする)
+- **`states`エントリの`isRig: true`**(`src`を持たない特別な状態、
+  `body_pose`の`defaultState`は`"rig"`): 選択すると全身スプライト表示を
+  終了し、通常のパーツ合成描画に戻る。`src`が無くても`isRig: true`の
+  状態は例外的にB3の状態切替UIでボタン化される(バリデータも
+  「未生成」警告の対象から除外する)
+- `body_pose`が存在しないcharacter.json(将来、旧形式や別キャラ)では
+  この分岐は素通りし、通常のリグ描画のみが行われる
 
 ## 実行時状態は含まない(境界)
 

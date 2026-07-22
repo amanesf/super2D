@@ -66,13 +66,20 @@
   - 受け入れ: 目・口の状態がボタンで切り替わる/書き出したJSONが読込中の
     ものと一致する/srcの無いstateのボタンが存在しない
 
-- [ ] **B4: プレースホルダーのカタログ全状態化**
+- [x] **B4: プレースホルダーのカタログ全状態化**
   - 触る: `scripts/make_placeholder_parts.js`
   - 表情12・viseme6・手の形8・アクション9・角度12・ロコモーション3×4の
     全状態ぶんの偽画像(円・四角のみ、状態ごとに色や形を変えて区別可能に)
     とstates定義を生成
   - 受け入れ: B3のUIに全カテゴリのボタンが並び、押すと見た目が変わる
     ことを数カテゴリ抜き取りで確認
+  - **実装時の設計判断(ユーザー確認済み)**: 角度12・アクション9・
+    ロコモーション12は個別パーツのstatesでは表現できない(全身の
+    ポーズが変わるため)ため、touch対象をjs/viewer.js・js/validate.js・
+    docs/character-format.mdまで広げ、新設パーツ`body_pose`
+    (`motion: "sprite-select"`)による全身1枚スプライト切替を追加した
+    (`rig`という特別状態でリグ描画に戻す)。詳細は
+    docs/character-format.mdの「motion: "sprite-select"」節を参照
 
 - [ ] **B5: ZIPのdrag&drop読込**
   - 触る: `viewer.html`/`js/viewer.js`(+ZIP展開の小さな自作実装または

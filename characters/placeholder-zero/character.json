@@ -55,7 +55,6 @@
       }
     },
     "head_base": {
-      "src": "public/head_base.png",
       "w": 170,
       "h": 170,
       "parent": "torso",
@@ -95,6 +94,45 @@
         ]
       },
       "motion": "procedural-sway",
+      "states": {
+        "neutral": {
+          "src": "public/head_base_neutral.png"
+        },
+        "happy": {
+          "src": "public/head_base_happy.png"
+        },
+        "angry": {
+          "src": "public/head_base_angry.png"
+        },
+        "sad": {
+          "src": "public/head_base_sad.png"
+        },
+        "relaxed": {
+          "src": "public/head_base_relaxed.png"
+        },
+        "surprised": {
+          "src": "public/head_base_surprised.png"
+        },
+        "embarrassed": {
+          "src": "public/head_base_embarrassed.png"
+        },
+        "troubled": {
+          "src": "public/head_base_troubled.png"
+        },
+        "smug": {
+          "src": "public/head_base_smug.png"
+        },
+        "sleepy": {
+          "src": "public/head_base_sleepy.png"
+        },
+        "crying": {
+          "src": "public/head_base_crying.png"
+        },
+        "wink": {
+          "src": "public/head_base_wink.png"
+        }
+      },
+      "defaultState": "neutral",
       "drawOrderHint": 30,
       "motionParams": {
         "freqHz": 0.6,
@@ -232,10 +270,22 @@
       "motion": "discrete-crossfade",
       "states": {
         "rest": {
-          "src": "public/mouth_closed.png"
+          "src": "public/mouth_rest.png"
         },
         "aa": {
-          "src": "public/mouth_open.png"
+          "src": "public/mouth_aa.png"
+        },
+        "ih": {
+          "src": "public/mouth_ih.png"
+        },
+        "ou": {
+          "src": "public/mouth_ou.png"
+        },
+        "ee": {
+          "src": "public/mouth_ee.png"
+        },
+        "oh": {
+          "src": "public/mouth_oh.png"
         }
       },
       "defaultState": "rest",
@@ -321,7 +371,6 @@
       }
     },
     "hand_r": {
-      "src": "public/hand_r.png",
       "w": 38,
       "h": 38,
       "parent": "arm_lower_r",
@@ -332,10 +381,30 @@
       ],
       "motion": "discrete-crossfade",
       "states": {
-        "open": {},
-        "fist": {},
-        "point": {},
-        "mic": {}
+        "open": {
+          "src": "public/hand_r_open.png"
+        },
+        "fist": {
+          "src": "public/hand_r_fist.png"
+        },
+        "point": {
+          "src": "public/hand_r_point.png"
+        },
+        "mic": {
+          "src": "public/hand_r_mic.png"
+        },
+        "peace": {
+          "src": "public/hand_r_peace.png"
+        },
+        "heart": {
+          "src": "public/hand_r_heart.png"
+        },
+        "thumbs_up": {
+          "src": "public/hand_r_thumbs_up.png"
+        },
+        "wave": {
+          "src": "public/hand_r_wave.png"
+        }
       },
       "defaultState": "open",
       "drawOrderHint": 22
@@ -401,7 +470,6 @@
       }
     },
     "hand_l": {
-      "src": "public/hand_l.png",
       "w": 38,
       "h": 38,
       "parent": "arm_lower_l",
@@ -412,10 +480,30 @@
       ],
       "motion": "discrete-crossfade",
       "states": {
-        "open": {},
-        "fist": {},
-        "point": {},
-        "mic": {}
+        "open": {
+          "src": "public/hand_l_open.png"
+        },
+        "fist": {
+          "src": "public/hand_l_fist.png"
+        },
+        "point": {
+          "src": "public/hand_l_point.png"
+        },
+        "mic": {
+          "src": "public/hand_l_mic.png"
+        },
+        "peace": {
+          "src": "public/hand_l_peace.png"
+        },
+        "heart": {
+          "src": "public/hand_l_heart.png"
+        },
+        "thumbs_up": {
+          "src": "public/hand_l_thumbs_up.png"
+        },
+        "wave": {
+          "src": "public/hand_l_wave.png"
+        }
       },
       "defaultState": "open",
       "drawOrderHint": 44
@@ -485,9 +573,127 @@
       "motion": "procedural-mesh-bend",
       "note": "膝のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
       "drawOrderHint": 15
+    },
+    "body_pose": {
+      "w": 1024,
+      "h": 1024,
+      "parent": null,
+      "pivot": [
+        512,
+        512
+      ],
+      "motion": "sprite-select",
+      "states": {
+        "rig": {
+          "isRig": true
+        },
+        "angle_0": {
+          "src": "public/body_pose_angle_0.png"
+        },
+        "angle_30": {
+          "src": "public/body_pose_angle_30.png"
+        },
+        "angle_60": {
+          "src": "public/body_pose_angle_60.png"
+        },
+        "angle_90": {
+          "src": "public/body_pose_angle_90.png"
+        },
+        "angle_120": {
+          "src": "public/body_pose_angle_120.png"
+        },
+        "angle_150": {
+          "src": "public/body_pose_angle_150.png"
+        },
+        "angle_180": {
+          "src": "public/body_pose_angle_180.png"
+        },
+        "angle_210": {
+          "src": "public/body_pose_angle_210.png"
+        },
+        "angle_240": {
+          "src": "public/body_pose_angle_240.png"
+        },
+        "angle_270": {
+          "src": "public/body_pose_angle_270.png"
+        },
+        "angle_300": {
+          "src": "public/body_pose_angle_300.png"
+        },
+        "angle_330": {
+          "src": "public/body_pose_angle_330.png"
+        },
+        "idle": {
+          "src": "public/body_pose_action_idle.png"
+        },
+        "greet": {
+          "src": "public/body_pose_action_greet.png"
+        },
+        "bow": {
+          "src": "public/body_pose_action_bow.png"
+        },
+        "nod": {
+          "src": "public/body_pose_action_nod.png"
+        },
+        "sit": {
+          "src": "public/body_pose_action_sit.png"
+        },
+        "think": {
+          "src": "public/body_pose_action_think.png"
+        },
+        "cheer": {
+          "src": "public/body_pose_action_cheer.png"
+        },
+        "clap": {
+          "src": "public/body_pose_action_clap.png"
+        },
+        "shrug": {
+          "src": "public/body_pose_action_shrug.png"
+        },
+        "walk_mid_0": {
+          "src": "public/body_pose_walk_mid_0.png"
+        },
+        "walk_mid_90": {
+          "src": "public/body_pose_walk_mid_90.png"
+        },
+        "walk_mid_180": {
+          "src": "public/body_pose_walk_mid_180.png"
+        },
+        "walk_mid_270": {
+          "src": "public/body_pose_walk_mid_270.png"
+        },
+        "run_mid_0": {
+          "src": "public/body_pose_run_mid_0.png"
+        },
+        "run_mid_90": {
+          "src": "public/body_pose_run_mid_90.png"
+        },
+        "run_mid_180": {
+          "src": "public/body_pose_run_mid_180.png"
+        },
+        "run_mid_270": {
+          "src": "public/body_pose_run_mid_270.png"
+        },
+        "jump_0": {
+          "src": "public/body_pose_jump_0.png"
+        },
+        "jump_90": {
+          "src": "public/body_pose_jump_90.png"
+        },
+        "jump_180": {
+          "src": "public/body_pose_jump_180.png"
+        },
+        "jump_270": {
+          "src": "public/body_pose_jump_270.png"
+        }
+      },
+      "defaultState": "rig",
+      "drawOrderHint": 0,
+      "note": "全身スプライト切替用の仮想パーツ。通常のリグ合成には参加せず、rig以外の状態が選ばれた間だけjs/viewer.jsのdraw()がキャンバス全面に表示する。"
     }
   },
   "drawOrder": [
+    "body_pose",
     "hair_back",
     "cape",
     "torso",
