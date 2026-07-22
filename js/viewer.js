@@ -1,22 +1,138 @@
 // super2D 試作ビューア(プレースホルダーパーツで動作確認用)
 // character.json(characters/<id>/character.json)の親子階層・ピボットを読み、
-// Canvas2Dで組み立てて描画・アニメーションする。
-// 本番はWebGL+メッシュ変形を想定しているが、リグ・アニメーションの
-// ロジック(階層変換・呼吸/揺れ/まばたき・クロスフェード)自体は
-// レンダラを問わず共通のため、まずCanvas2Dで検証する。
+// WebGLで組み立てて描画・アニメーションする。
+// レンダラはC1のスパイク実験(experiments/c1-renderer-spike/)の比較結果を
+// 踏まえてWebGL(三角メッシュ)に確定した(PLAN.md「C1決定」節参照)。
+// リグ・アニメーションのロジック(階層変換・呼吸/揺れ/まばたき・
+// クロスフェード)はレンダラ非依存のまま変更していない。
 (function () {
   "use strict";
 
   const canvas = document.getElementById("stage");
-  const ctx = canvas.getContext("2d");
   const statusEl = document.getElementById("status");
+  // preserveDrawingBuffer: テスト(tests/render_golden.test.js)がフレーム後に
+  // gl.readPixels()で描画結果を読み戻せるようにするため有効化する。
+  const gl = canvas.getContext("webgl", { alpha: true, preserveDrawingBuffer: true });
+  if (!gl) {
+    statusEl.style.color = "#f87171";
+    statusEl.textContent = "このブラウザ/環境ではWebGLコンテキストを取得できませんでした。";
+    throw new Error("WebGL unavailable");
+  }
 
-  // manifest/images/stateは差し替え可能(B5、ZIPドロップでの読込直後に
-  // まとめて入れ替える)。draw()等は常にこの時点の値を参照するので、
+  // 全パーツ共通の矩形描画(ユニットクアッド)シェーダー。
+  // パーツごとの違いはすべてuniform(サイズ・ピボット・ワールド位置・
+  // 回転・スケール)で表現し、頂点バッファは1つを使い回す。
+  const VERT_SRC = `
+    attribute vec2 aUnit; // (0,0)〜(1,1)の単位方形
+    uniform vec2 uSize;
+    uniform vec2 uPivot;
+    uniform vec2 uWorldPos;
+    uniform float uAngle;
+    uniform vec2 uScale;
+    uniform vec2 uResolution;
+    varying vec2 vTexCoord;
+
+    void main() {
+      vec2 localPos = (aUnit * uSize) - uPivot;
+      vec2 scaled = localPos * uScale;
+      float c = cos(uAngle);
+      float s = sin(uAngle);
+      vec2 rotated = vec2(scaled.x * c - scaled.y * s, scaled.x * s + scaled.y * c);
+      vec2 pixelPos = uWorldPos + rotated;
+      vec2 clip = (pixelPos / uResolution) * 2.0 - 1.0;
+      gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
+      vTexCoord = aUnit;
+    }
+  `;
+  const FRAG_SRC = `
+    precision mediump float;
+    varying vec2 vTexCoord;
+    uniform sampler2D uTexture;
+    void main() {
+      gl_FragColor = texture2D(uTexture, vTexCoord);
+    }
+  `;
+
+  function compileShader(type, src) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, src);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      const info = gl.getShaderInfoLog(shader);
+      gl.deleteShader(shader);
+      throw new Error("シェーダーのコンパイルに失敗しました: " + info);
+    }
+    return shader;
+  }
+
+  const program = gl.createProgram();
+  gl.attachShader(program, compileShader(gl.VERTEX_SHADER, VERT_SRC));
+  gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, FRAG_SRC));
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    throw new Error("シェーダーのリンクに失敗しました: " + gl.getProgramInfoLog(program));
+  }
+
+  const unitBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, unitBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
+  const aUnit = gl.getAttribLocation(program, "aUnit");
+
+  const uLoc = {
+    size: gl.getUniformLocation(program, "uSize"),
+    pivot: gl.getUniformLocation(program, "uPivot"),
+    worldPos: gl.getUniformLocation(program, "uWorldPos"),
+    angle: gl.getUniformLocation(program, "uAngle"),
+    scale: gl.getUniformLocation(program, "uScale"),
+    resolution: gl.getUniformLocation(program, "uResolution"),
+    texture: gl.getUniformLocation(program, "uTexture"),
+  };
+
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+  function createTextureFromImage(img) {
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    return texture;
+  }
+
+  // 矩形1枚を描く(パーツ・全身スプライト共通)。pivotが(0,0)・scaleが
+  // (1,1)・angleが0なら、(0,0)-(w,h)のまま画面左上基準で描かれる
+  // (body_poseの全身スプライトはこの既定値で使う)。
+  function drawQuad(texture, size, pivot, worldPos, angleRad, scaleXY) {
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, unitBuf);
+    gl.enableVertexAttribArray(aUnit);
+    gl.vertexAttribPointer(aUnit, 2, gl.FLOAT, false, 0, 0);
+
+    gl.uniform2f(uLoc.size, size[0], size[1]);
+    gl.uniform2f(uLoc.pivot, pivot[0], pivot[1]);
+    gl.uniform2f(uLoc.worldPos, worldPos[0], worldPos[1]);
+    gl.uniform1f(uLoc.angle, angleRad);
+    gl.uniform2f(uLoc.scale, scaleXY[0], scaleXY[1]);
+    gl.uniform2f(uLoc.resolution, canvas.width, canvas.height);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1i(uLoc.texture, 0);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  // manifest/images/textures/stateは差し替え可能(B5、ZIPドロップでの読込
+  // 直後にまとめて入れ替える)。draw()等は常にこの時点の値を参照するので、
   // 「読込完了後に一括で差し替える」ことで半端な状態を描画させない。
   let manifest = null;
   let characterDir = ""; // character.jsonがあるディレクトリ(相対src解決の基点)
   let images = {}; // src -> HTMLImageElement
+  let textures = {}; // src -> WebGLTexture
   let state = {}; // partName -> { angle, offsetX, offsetY, currentState }
 
   function getCharacterId() {
@@ -80,7 +196,13 @@
     }
     const srcs = collectSrcs(manifestData);
     await Promise.all([...srcs].map((src) => loadImageInto(newImages, src, resolver)));
-    return { newImages, newState };
+
+    const newTextures = {};
+    for (const src of Object.keys(newImages)) {
+      newTextures[src] = createTextureFromImage(newImages[src]);
+    }
+
+    return { newImages, newTextures, newState };
   }
 
   // character.jsonを検証→画像読込→検証通過後にまとめて差し替える。
@@ -108,6 +230,7 @@
 
     manifest = manifestData;
     images = built.newImages;
+    textures = built.newTextures;
     state = built.newState;
 
     statusEl.style.color = "#6ee7b7";
@@ -138,7 +261,7 @@
         const anchorLocal = parentPart.anchors && parentPart.anchors[part.parentAnchor];
         const [ax, ay] = anchorLocal || [0, 0];
         // 親のローカルアンカー点を、親自身の描画スケール→親のワールド回転の順で変換。
-        // draw()でのctx.rotate(angle)→ctx.scale(sx,sy)の適用順(スケールは
+        // drawQuad()の頂点シェーダーでのscale→rotateの適用順(スケールは
         // パーツ自身のローカル空間、回転はその外側)と一致させないと、呼吸等で
         // 親パーツの絵だけが伸縮してアンカー位置が追従せず継ぎ目が開く(B1)。
         const cos = Math.cos(parentWorld.angle);
@@ -171,14 +294,17 @@
     const stateName = state.body_pose.currentState || bodyPose.defaultState;
     const entry = bodyPose.states[stateName];
     if (!entry || !entry.src) return false; // "rig"状態(またはsrc無し)は通常描画へ
-    const img = images[entry.src];
-    if (!img) return false;
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const texture = textures[entry.src];
+    if (!texture) return false;
+    // pivot(0,0)・worldPos(0,0)・angle0・scale(1,1)で、キャンバス左上基準
+    // (0,0)-(canvas.width,canvas.height)にそのまま全面表示する。
+    drawQuad(texture, [canvas.width, canvas.height], [0, 0], [0, 0], 0, [1, 1]);
     return true;
   }
 
   function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0, 0, 0, 0); // Canvas2D版のclearRect相当(完全透明、CSS背景を透かす)
+    gl.clear(gl.COLOR_BUFFER_BIT);
     if (drawBodyPoseSprite()) return;
 
     const world = computeWorldTransforms();
@@ -188,16 +314,11 @@
       const w = world[name];
       const src = partCurrentSrc(name, part);
       if (!src) continue;
-      const img = images[src];
-      if (!img) continue;
+      const texture = textures[src];
+      if (!texture) continue;
       const s = state[name];
 
-      ctx.save();
-      ctx.translate(w.x, w.y);
-      ctx.rotate(w.angle);
-      ctx.scale(s.scaleX, s.scaleY);
-      ctx.drawImage(img, -part.pivot[0], -part.pivot[1], part.w, part.h);
-      ctx.restore();
+      drawQuad(texture, [part.w, part.h], part.pivot, [w.x, w.y], w.angle, [s.scaleX, s.scaleY]);
     }
   }
 
