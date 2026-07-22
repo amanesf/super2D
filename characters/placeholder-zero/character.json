@@ -360,14 +360,15 @@
         ]
       },
       "motion": "procedural-mesh-bend",
-      "note": "肘のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
+      "note": "肘の関節メッシュ変形(C2.5、頂点スキニングでarm_upperとの継ぎ目を無くす)",
       "drawOrderHint": 21,
       "motionParams": {
         "idleSway": {
           "freqHz": 1.1,
           "phase": 1,
           "ampRad": 0.015
-        }
+        },
+        "blendMarginPx": 50
       }
     },
     "hand_r": {
@@ -459,14 +460,15 @@
         ]
       },
       "motion": "procedural-mesh-bend",
-      "note": "肘のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
+      "note": "肘の関節メッシュ変形(C2.5、頂点スキニングでarm_upperとの継ぎ目を無くす)",
       "drawOrderHint": 43,
       "motionParams": {
         "idleSway": {
           "freqHz": 1.1,
           "phase": 1.6,
           "ampRad": 0.015
-        }
+        },
+        "blendMarginPx": 50
       }
     },
     "hand_l": {
@@ -538,8 +540,11 @@
         8
       ],
       "motion": "procedural-mesh-bend",
-      "note": "膝のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
-      "drawOrderHint": 13
+      "note": "膝の関節メッシュ変形(C2.5、頂点スキニングでleg_upperとの継ぎ目を無くす)",
+      "drawOrderHint": 13,
+      "motionParams": {
+        "blendMarginPx": 60
+      }
     },
     "leg_upper_l": {
       "src": "public/leg_upper_l.png",
@@ -571,8 +576,11 @@
         8
       ],
       "motion": "procedural-mesh-bend",
-      "note": "膝のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
-      "drawOrderHint": 15
+      "note": "膝の関節メッシュ変形(C2.5、頂点スキニングでleg_upperとの継ぎ目を無くす)",
+      "drawOrderHint": 15,
+      "motionParams": {
+        "blendMarginPx": 60
+      }
     },
     "body_pose": {
       "w": 1024,

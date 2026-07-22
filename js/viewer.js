@@ -126,6 +126,150 @@
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
+  // ---- 関節メッシュ変形(procedural-mesh-bend、C2.5) ----------------------
+  // C1実験(experiments/c1-renderer-spike/)で実証した「頂点ごとの2ボーン
+  // 線形ブレンドスキニング」を実リグに反映したもの。arm_lower/leg_lowerは
+  // 親(arm_upper/leg_upper)と同じpivotを共有しているため、C1のような
+  // 2つの独立したボーンではなく「回転角度が0(親に揃う)〜s.angle(自身の
+  // 曲げ角度)の間を頂点ごとの重みでブレンドする」という単純な形になる。
+  // pivot付近(重み0)は親の向きに揃い、pivotから離れる(重み1)ほど自身の
+  // 曲げ角度が効くため、arm_upper側の縁と滑らかに繋がる。
+  const BEND_VERT_SRC = `
+    attribute vec2 aLocalPos; // ピボットからの相対px座標
+    attribute vec2 aTexCoord;
+    attribute float aWeight; // 0=親の向きに揃う(ピボット付近)、1=自身の曲げ角度
+    uniform vec2 uWorldPos;
+    uniform float uAngleBase; // 親のワールド角度(自身のs.angleを含まない)
+    uniform float uAngleFull; // 親の角度+自身のs.angle(従来の剛体回転相当)
+    uniform vec2 uScale;
+    uniform vec2 uResolution;
+    varying vec2 vTexCoord;
+
+    vec2 rotate(vec2 p, float angle) {
+      float c = cos(angle);
+      float s = sin(angle);
+      return vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+    }
+
+    void main() {
+      vec2 scaled = aLocalPos * uScale;
+      vec2 posBase = uWorldPos + rotate(scaled, uAngleBase);
+      vec2 posFull = uWorldPos + rotate(scaled, uAngleFull);
+      vec2 pixelPos = mix(posBase, posFull, aWeight);
+      vec2 clip = (pixelPos / uResolution) * 2.0 - 1.0;
+      gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
+      vTexCoord = aTexCoord;
+    }
+  `;
+
+  const bendProgram = gl.createProgram();
+  gl.attachShader(bendProgram, compileShader(gl.VERTEX_SHADER, BEND_VERT_SRC));
+  gl.attachShader(bendProgram, compileShader(gl.FRAGMENT_SHADER, FRAG_SRC));
+  gl.linkProgram(bendProgram);
+  if (!gl.getProgramParameter(bendProgram, gl.LINK_STATUS)) {
+    throw new Error("シェーダーのリンクに失敗しました: " + gl.getProgramInfoLog(bendProgram));
+  }
+
+  const bendLoc = {
+    localPos: gl.getAttribLocation(bendProgram, "aLocalPos"),
+    texCoord: gl.getAttribLocation(bendProgram, "aTexCoord"),
+    weight: gl.getAttribLocation(bendProgram, "aWeight"),
+    worldPos: gl.getUniformLocation(bendProgram, "uWorldPos"),
+    angleBase: gl.getUniformLocation(bendProgram, "uAngleBase"),
+    angleFull: gl.getUniformLocation(bendProgram, "uAngleFull"),
+    scale: gl.getUniformLocation(bendProgram, "uScale"),
+    resolution: gl.getUniformLocation(bendProgram, "uResolution"),
+    texture: gl.getUniformLocation(bendProgram, "uTexture"),
+  };
+
+  // 重みは滑らかな smoothstep(ピボットからの距離/blendMarginPx)。
+  // margin手前で重み0(親に完全に揃う)、marginを超えると重み1(従来通り
+  // 自身の角度で剛体回転)で頭打ちにする。
+  function smoothstep(x) {
+    const c = Math.max(0, Math.min(1, x));
+    return c * c * (3 - 2 * c);
+  }
+
+  function buildBendMesh(part, blendMarginPx) {
+    const cols = 6;
+    const rows = 24;
+    const positions = [];
+    const texCoords = [];
+    const weights = [];
+    const indices = [];
+
+    for (let r = 0; r <= rows; r++) {
+      const y = (part.h * r) / rows;
+      const distFromPivot = y - part.pivot[1];
+      const weight = blendMarginPx > 0 ? smoothstep(distFromPivot / blendMarginPx) : 1;
+      for (let c = 0; c <= cols; c++) {
+        const x = (part.w * c) / cols;
+        positions.push(x - part.pivot[0], y - part.pivot[1]);
+        texCoords.push(x / part.w, y / part.h);
+        weights.push(weight);
+      }
+    }
+
+    const rowStride = cols + 1;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const i0 = r * rowStride + c;
+        const i1 = i0 + 1;
+        const i2 = i0 + rowStride;
+        const i3 = i2 + 1;
+        indices.push(i0, i2, i1, i1, i2, i3);
+      }
+    }
+
+    const posBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+    const texBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, texBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
+
+    const weightBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, weightBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(weights), gl.STATIC_DRAW);
+
+    const idxBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+    return { posBuf, texBuf, weightBuf, idxBuf, indexCount: indices.length };
+  }
+
+  function drawBendMesh(mesh, texture, worldPos, angleBase, angleFull, scaleXY) {
+    gl.useProgram(bendProgram);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.posBuf);
+    gl.enableVertexAttribArray(bendLoc.localPos);
+    gl.vertexAttribPointer(bendLoc.localPos, 2, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.texBuf);
+    gl.enableVertexAttribArray(bendLoc.texCoord);
+    gl.vertexAttribPointer(bendLoc.texCoord, 2, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.weightBuf);
+    gl.enableVertexAttribArray(bendLoc.weight);
+    gl.vertexAttribPointer(bendLoc.weight, 1, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.idxBuf);
+
+    gl.uniform2f(bendLoc.worldPos, worldPos[0], worldPos[1]);
+    gl.uniform1f(bendLoc.angleBase, angleBase);
+    gl.uniform1f(bendLoc.angleFull, angleFull);
+    gl.uniform2f(bendLoc.scale, scaleXY[0], scaleXY[1]);
+    gl.uniform2f(bendLoc.resolution, canvas.width, canvas.height);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1i(bendLoc.texture, 0);
+
+    gl.drawElements(gl.TRIANGLES, mesh.indexCount, gl.UNSIGNED_SHORT, 0);
+  }
+
   // manifest/images/textures/stateは差し替え可能(B5、ZIPドロップでの読込
   // 直後にまとめて入れ替える)。draw()等は常にこの時点の値を参照するので、
   // 「読込完了後に一括で差し替える」ことで半端な状態を描画させない。
@@ -133,6 +277,7 @@
   let characterDir = ""; // character.jsonがあるディレクトリ(相対src解決の基点)
   let images = {}; // src -> HTMLImageElement
   let textures = {}; // src -> WebGLTexture
+  let bendMeshes = {}; // partName -> 関節メッシュ(procedural-mesh-bendのみ、C2.5)
   let state = {}; // partName -> { angle, offsetX, offsetY, currentState }
 
   function getCharacterId() {
@@ -202,7 +347,16 @@
       newTextures[src] = createTextureFromImage(newImages[src]);
     }
 
-    return { newImages, newTextures, newState };
+    // procedural-mesh-bendパーツ(C2.5)は頂点メッシュを持つ。
+    // blendMarginPxが無指定なら重み常に1(=従来の剛体回転と同じ見た目)。
+    const newBendMeshes = {};
+    for (const [name, part] of Object.entries(manifestData.parts)) {
+      if (part.motion !== "procedural-mesh-bend") continue;
+      const blendMarginPx = (part.motionParams && part.motionParams.blendMarginPx) || 0;
+      newBendMeshes[name] = buildBendMesh(part, blendMarginPx);
+    }
+
+    return { newImages, newTextures, newBendMeshes, newState };
   }
 
   // character.jsonを検証→画像読込→検証通過後にまとめて差し替える。
@@ -231,6 +385,7 @@
     manifest = manifestData;
     images = built.newImages;
     textures = built.newTextures;
+    bendMeshes = built.newBendMeshes;
     state = built.newState;
 
     statusEl.style.color = "#6ee7b7";
@@ -318,7 +473,15 @@
       if (!texture) continue;
       const s = state[name];
 
-      drawQuad(texture, [part.w, part.h], part.pivot, [w.x, w.y], w.angle, [s.scaleX, s.scaleY]);
+      const mesh = bendMeshes[name];
+      if (mesh) {
+        // C2.5: 親のワールド角度(自身のs.angleを含まない)〜完全な角度の間を
+        // 頂点ごとの重みでブレンドし、親パーツとの継ぎ目を無くす。
+        const angleBase = part.parent ? world[part.parent].angle : 0;
+        drawBendMesh(mesh, texture, [w.x, w.y], angleBase, w.angle, [s.scaleX, s.scaleY]);
+      } else {
+        drawQuad(texture, [part.w, part.h], part.pivot, [w.x, w.y], w.angle, [s.scaleX, s.scaleY]);
+      }
     }
   }
 

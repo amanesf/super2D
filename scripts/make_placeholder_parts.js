@@ -321,9 +321,12 @@ async function build() {
       pivot: [24, 10],
       anchors: { wrist: [24, 120] },
       motion: "procedural-mesh-bend",
-      note: "肘のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
+      note: "肘の関節メッシュ変形(C2.5、頂点スキニングでarm_upperとの継ぎ目を無くす)",
       drawOrderHint: side === "r" ? 21 : 43,
-      motionParams: { idleSway: { freqHz: 1.1, phase: side === "r" ? 1.0 : 1.6, ampRad: 0.015 } },
+      motionParams: {
+        idleSway: { freqHz: 1.1, phase: side === "r" ? 1.0 : 1.6, ampRad: 0.015 },
+        blendMarginPx: 50,
+      },
     };
 
     // 手の形8(PLAN.md標準部品カタログ: core4 open/fist/point/mic +
@@ -388,8 +391,9 @@ async function build() {
       parent: `leg_upper_${side}`, parentAnchor: "knee",
       pivot: [26, 8],
       motion: "procedural-mesh-bend",
-      note: "膝のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
+      note: "膝の関節メッシュ変形(C2.5、頂点スキニングでleg_upperとの継ぎ目を無くす)",
       drawOrderHint: side === "r" ? 13 : 15,
+      motionParams: { blendMarginPx: 60 },
     };
   }
 

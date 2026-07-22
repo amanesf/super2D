@@ -40,13 +40,13 @@
 | `parentAnchor` | string | `parent`が`null`でなければ○ | 親の`anchors`のキー名。子の`pivot`をこの点に一致させて配置する |
 | `pivot` | `[x, y]` | ○ | パーツのローカル座標系における回転・配置の基準点(px) |
 | `anchors` | object | 任意 | このパーツに子パーツを接続するための命名点のマップ(`{名前: [x, y]}`、ローカル座標)。子を持たないパーツには無い |
-| `motion` | string | ○ | ビューアがこのパーツをどう動かすかを選ぶ種別タグ。現行の値: `procedural-breathe`(呼吸)/`procedural-sway`(首振り追従)/`procedural-mesh-sway`(遅延揺れ)/`procedural-mesh-bend`(関節曲げ、現状は剛体近似)/`discrete-crossfade`(状態切替)/`static-cutout`(無変形)/`sprite-select`(全身1枚スプライト切替、後述)。**値の一覧は本書が正**であり、ビューア実装(`js/viewer.js`)側でパーツ名を直書きした分岐をしないことがB2の受け入れ条件 |
+| `motion` | string | ○ | ビューアがこのパーツをどう動かすかを選ぶ種別タグ。現行の値: `procedural-breathe`(呼吸)/`procedural-sway`(首振り追従)/`procedural-mesh-sway`(遅延揺れ)/`procedural-mesh-bend`(関節メッシュ変形、頂点スキニングで親パーツとの継ぎ目を無くす。C2.5)/`discrete-crossfade`(状態切替)/`static-cutout`(無変形)/`sprite-select`(全身1枚スプライト切替、後述)。**値の一覧は本書が正**であり、ビューア実装(`js/viewer.js`)側でパーツ名を直書きした分岐をしないことがB2の受け入れ条件 |
 | `states` | object | `src`が無い場合は○ | 状態名→`{src}`(または`{isRig: true}`、後述)のマップ。`src`を持つ状態のみがビューア上で選択可能(UIボタン化の対象、B3参照)。`src`の無い状態(例: 現行のプレースホルダーにおける`arm_upper_r.states.raised`)は「将来ここに画像が入る」という予約枠であり、ビューアはボタンを出さない。ただし`isRig: true`の状態(後述)は例外でボタン化される |
 | `motionParams` | object | 任意(`motion`が数値駆動の種別なら実質必須) | 揺れの振幅・周波数・追従比率など、`motion`種別ごとの数値パラメータ(後述)。ビューアはこの数値だけを読んで挙動を決め、パーツ名をコードに直書きしない(B2) |
 | `defaultState` | string | `states`がある場合は○ | 読込直後・リセット時に選ばれる状態名。`states`のキーに存在すること |
 | `drawOrderHint` | number | 任意 | **authoring時のみ使う値**。`scripts/make_placeholder_parts.js`が`drawOrder`配列を機械生成する際のソートキー。ビューアは実行時にこのフィールドを読まない(読むのは常にトップレベルの`drawOrder`) |
 | `symmetry` | string | 任意 | 人間・生成パイプライン向けの注記(例: `"asymmetric"` = 左右非対称なので鏡像複製不可)。ビューアは読まない |
-| `note` | string | 任意 | 人間向けの自由記述(例: 「肘のメッシュ曲げ点デモ、プロトタイプは剛体2分割」)。ビューアは読まない |
+| `note` | string | 任意 | 人間向けの自由記述(例: 「肘の関節メッシュ変形、頂点スキニングでarm_upperとの継ぎ目を無くす」)。ビューアは読まない |
 
 ### `motionParams`のサブフィールド(`motion`種別ごと)
 
@@ -59,12 +59,33 @@
 | `procedural-breathe` | `freqHz`(周波数)/ `ampScaleX`・`ampScaleY`(`scaleX`・`scaleY`の脈動振幅、1.0からの相対値) |
 | `procedural-sway` | `freqHz` / `ampRad`(回転角の振幅、ラジアン) |
 | `procedural-mesh-sway` | `freqHz` / `phase`(位相、ラジアン) / `ampRad` / `followRatio`(親パーツの`angle`にこの比率を掛けて自分の角度に加算する追従係数。`parent`が無ければ無視) |
-| `procedural-mesh-bend` / `discrete-crossfade` / `static-cutout` | 上記の主駆動は無し(角度は0のまま)。ただし後述の`idleSway`は共通して使える |
+| `procedural-mesh-bend` | 主駆動の角度は無し(角度自体は`idleSway`や手振りデモ等、他の仕組みで設定される)。`blendMarginPx`(後述、関節メッシュの継ぎ目ぼかし幅) |
+| `discrete-crossfade` / `static-cutout` | 上記の主駆動は無し(角度は0のまま)。ただし後述の`idleSway`は共通して使える |
 
 **`idleSway`(任意、どの`motion`にも追加できる補助揺れ)**: `{ freqHz, phase, ampRad }`。
 主駆動の角度(上表)に加算される。腕のように「状態切替(`discrete-crossfade`)
 はするが、待機中は僅かに揺れてほしい」パーツに使う(現行の
 `arm_upper_r`/`arm_upper_l`/`arm_lower_r`/`arm_lower_l`)
+
+### `motion: "procedural-mesh-bend"`(関節メッシュ変形、C2.5)
+
+`arm_lower_r/l`・`leg_lower_r/l`のように、親パーツ(`arm_upper`/
+`leg_upper`)と関節(肘・膝)で繋がるパーツに使う。親と自身が同じ`pivot`
+(関節位置)を共有する前提で、そのパーツを**頂点ごとに重み付けした
+メッシュ**として描画する(`js/viewer.js`の`buildBendMesh()`/
+`drawBendMesh()`、C1で実証した頂点スキニングを実リグに反映したもの)。
+
+- **`blendMarginPx`**(`motionParams`のサブフィールド、数値・px): `pivot`
+  からのY距離がこの値以内の頂点は「親のワールド角度(自身の`angle`を
+  含まない)」に重み0で揃い、`blendMarginPx`を超えると重み1(従来通り
+  自身の`angle`を含めた完全な回転)に達する(間はsmoothstepで補間)。
+  未指定または0なら常に重み1、つまり**剛体回転(旧・剛体2分割)と同じ
+  見た目**になる(過去バージョンとの互換動作)
+- 効果: `pivot`付近(親との境界)が親の向きに滑らかに揃うため、親パーツの
+  縁との継ぎ目が目立たない。値が大きいほど広い範囲がなだらかに曲がり、
+  小さいほど遠くまで剛体に近い見た目になる
+- 実験的な検証は`experiments/c1-renderer-spike/`(同じ頂点スキニングの
+  考え方を、独立した2ボーンとして実装したもの)を参照
 
 ### `motion: "sprite-select"`(全身1枚スプライト切替、B4)
 
