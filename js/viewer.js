@@ -615,13 +615,30 @@
     setupDropZone();
 
     const controls = setupControls();
+
+    // 固定タイムステップ(120Hzサブステップ+アキュムレータ、C2)。
+    // 可変dtのまま更新すると同じ入力でも実行タイミング次第で揺れが
+    // 微妙に変わり、決定論方針(CLAUDE.md)に反する。実フレーム時間を
+    // 貯めて固定刻みで消化することで、同じ経過時間なら同じ回数・同じ
+    // dtで更新が走るようにする。描画側補間は行わない(サブステップが
+    // 120Hzで一般的な表示のリフレッシュレートより十分細かく、体感できる
+    // 差が出ないため)。
+    const FIXED_DT = 1 / 120;
+    const MAX_FRAME_DT = 0.25; // タブ非アクティブ復帰等での暴走(積み残し急増)を防ぐ上限
     let last = performance.now();
+    let accumulator = 0;
     function frame(now) {
-      const dt = Math.min((now - last) / 1000, 0.05);
+      const frameDt = Math.min((now - last) / 1000, MAX_FRAME_DT);
       last = now;
-      updateIdle(dt);
-      updateWave(dt, controls.waving);
-      updateTalk(dt, controls.talking);
+      accumulator += frameDt;
+
+      while (accumulator >= FIXED_DT) {
+        updateIdle(FIXED_DT);
+        updateWave(FIXED_DT, controls.waving);
+        updateTalk(FIXED_DT, controls.talking);
+        accumulator -= FIXED_DT;
+      }
+
       draw();
       requestAnimationFrame(frame);
     }
