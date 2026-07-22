@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>C1: レンダラ判断スパイク(Canvas2D短冊 vs WebGL三角メッシュ)</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    background: #1b1d22; color: #e8edf2;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .page { max-width: 900px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
+  h1 { font-size: 16px; font-weight: 600; margin: 0 0 8px; }
+  h2 { font-size: 14px; color: #1b1d22; margin: 0 0 8px; }
+  .note { font-size: 12px; color: #9aa3ad; line-height: 1.7; margin: 0 0 16px; }
+  .controls {
+    margin: 0 0 16px; display: flex; flex-direction: column; gap: 10px;
+    max-width: 520px; background: #24272e; border-radius: 10px; padding: 12px 14px;
+  }
+  label { font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+  input[type="range"] { width: 100%; }
+  .row { display: flex; gap: 20px; flex-wrap: wrap; }
+  .panel { background: #f4f6f8; border-radius: 12px; padding: 12px; }
+  canvas { display: block; background: #ffffff; border-radius: 8px; }
+  #status { font-size: 12px; color: #6ee7b7; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>C1: レンダラ判断スパイク — Canvas2D短冊分割 vs WebGL三角メッシュ</h1>
+  <p class="note">
+    同じ入力画像(<code>reference/master_v2.png</code>から切り出した袖+籠手+
+    手袋、実際のGemini生成物)に対して、「肘を曲げる」変形を2通りの方式で
+    実装して比較する実験(プロダクト外)。<br />
+    左: Canvas2Dの短冊分割(fan bend)。各短冊を共通のピボット周りに剛体
+    回転させる古典的な2Dスケルタル手法。短冊数を増やすほど滑らかに近づく
+    が、隣接短冊は少しずつ違う角度で回転するため境界は原理的に完全一致
+    しない(継ぎ目・段差が残る)。<br />
+    右: WebGLの三角メッシュ+頂点ごとの2ボーン線形ブレンドスキニング。
+    頂点単位で連続的に変形するため継ぎ目が生じない。
+  </p>
+  <div class="controls">
+    <label>曲げ角度: <span id="angle-value">0</span>°
+      <input type="range" id="angle" min="0" max="130" value="0" step="1" />
+    </label>
+    <label>Canvas2D短冊数: <span id="strip-value">40</span>
+      <input type="range" id="strips" min="4" max="200" value="40" step="1" />
+    </label>
+  </div>
+  <div class="row">
+    <div class="panel">
+      <h2>Canvas2D(短冊分割・fan bend)</h2>
+      <canvas id="canvas2d" width="360" height="480"></canvas>
+    </div>
+    <div class="panel">
+      <h2>WebGL(三角メッシュ・頂点スキニング)</h2>
+      <canvas id="webgl" width="360" height="480"></canvas>
+    </div>
+  </div>
+  <div id="status">読み込み中…</div>
+</div>
+<script src="canvas2d_strip.js"></script>
+<script src="webgl_skin.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
