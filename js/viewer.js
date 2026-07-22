@@ -34,10 +34,10 @@
     });
   }
 
-  function partCurrentSrc(part) {
+  function partCurrentSrc(name, part) {
     if (part.src) return part.src;
     if (part.states && part.defaultState) {
-      const st = state[part._name].currentState || part.defaultState;
+      const st = state[name].currentState || part.defaultState;
       const entry = part.states[st];
       return (entry && entry.src) || null;
     }
@@ -47,7 +47,6 @@
   async function preloadAll() {
     const srcs = new Set();
     for (const [name, part] of Object.entries(manifest.parts)) {
-      part._name = name;
       if (part.src) srcs.add(part.src);
       if (part.states) {
         for (const st of Object.values(part.states)) {
@@ -118,7 +117,7 @@
     for (const name of manifest.drawOrder) {
       const part = manifest.parts[name];
       const w = world[name];
-      const src = partCurrentSrc(part);
+      const src = partCurrentSrc(name, part);
       if (!src) continue;
       const img = images[src];
       if (!img) continue;
@@ -211,6 +210,53 @@
     }
   }
 
+  // ---- 状態切替UI(parts[*].statesから動的生成) ------------------------
+  // srcの無いstate(未生成の予約枠)はボタン化しない(B3受け入れ条件)。
+  function buildStateControls() {
+    const container = document.getElementById("state-controls");
+    if (!container) return;
+    container.innerHTML = "";
+
+    for (const [name, part] of Object.entries(manifest.parts)) {
+      if (!part.states) continue;
+      const withSrc = Object.entries(part.states).filter(([, entry]) => entry && entry.src);
+      if (withSrc.length === 0) continue;
+
+      const group = document.createElement("div");
+      group.className = "state-group";
+      const label = document.createElement("span");
+      label.className = "state-group-label";
+      label.textContent = name + ":";
+      group.appendChild(label);
+
+      for (const [stateName] of withSrc) {
+        const btn = document.createElement("button");
+        btn.textContent = stateName;
+        btn.addEventListener("click", () => {
+          state[name].currentState = stateName;
+        });
+        group.appendChild(btn);
+      }
+      container.appendChild(group);
+    }
+  }
+
+  // ---- character.jsonの書き出し(読込中のmanifestをそのままBlob化) -------
+  function setupExport() {
+    const btn = document.getElementById("btn-export");
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      const json = JSON.stringify(manifest, null, 2) + "\n";
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "character.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
   // ---- デモ用インタラクション ----------------------------------------
   function setupControls() {
     const waveBtn = document.getElementById("btn-wave");
@@ -243,11 +289,16 @@
     state.arm_lower_r.angle = -0.6 + Math.sin(t * 6 + 0.5) * 0.35;
   }
 
+  let wasTalking = false;
   function updateTalk(dt, talking) {
     if (!talking) {
-      state.mouth.currentState = "rest";
+      // 話し終わった瞬間だけrestへ戻す。毎フレーム強制すると状態切替
+      // ボタン(B3)での手動選択を無条件に上書きしてしまうため。
+      if (wasTalking) state.mouth.currentState = "rest";
+      wasTalking = false;
       return;
     }
+    wasTalking = true;
     state.mouth.currentState = Math.sin(t * 14) > 0.2 ? "aa" : "rest";
   }
 
@@ -270,6 +321,9 @@
 
     await preloadAll();
     statusEl.textContent = `読み込み完了(パーツ${Object.keys(manifest.parts).length}個、プレースホルダー画像)`;
+
+    buildStateControls();
+    setupExport();
 
     const controls = setupControls();
     let last = performance.now();

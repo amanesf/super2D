@@ -58,7 +58,7 @@
     変わる(コード変更なし)。`state.torso`等のパーツ名直書き分岐が
     viewer.jsから消える
 
-- [ ] **B3: 状態UIの動的生成+JSON書き出し**
+- [x] **B3: 状態UIの動的生成+JSON書き出し**
   - 触る: `viewer.html`/`js/viewer.js`
   - `parts[*].states`を列挙してボタン群を動的生成(`src`の無いstateは
     ボタン化しない)。「character.jsonを書き出す」ボタン(Blobダウン
