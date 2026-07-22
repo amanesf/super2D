@@ -176,6 +176,39 @@
     keyRow.appendChild(keyInput);
     wrap.appendChild(keyRow);
 
+    const modelRow = document.createElement("div");
+    modelRow.className = "apiKeyRow";
+    const modelLabel = document.createElement("label");
+    modelLabel.textContent = "Geminiモデル(生成ログに記録されます)";
+    modelLabel.htmlFor = "gemini-model-input";
+    modelRow.appendChild(modelLabel);
+    const modelInput = document.createElement("input");
+    modelInput.type = "text";
+    modelInput.id = "gemini-model-input";
+    modelInput.setAttribute("list", "gemini-model-options");
+    modelInput.value = window.S2D.geminiApi.getModel();
+    modelInput.addEventListener("change", () => {
+      window.S2D.geminiApi.setModel(modelInput.value.trim());
+    });
+    modelRow.appendChild(modelInput);
+    const modelOptions = document.createElement("datalist");
+    modelOptions.id = "gemini-model-options";
+    // モデルIDは変更が早いため決め打ちのプルダウンにはせず、候補として
+    // 出しつつ自由入力も受け付ける(datalist)。既定値は変更せず
+    // js/gemini_api.jsのDEFAULT_MODELのまま、ここではユーザーの選択を
+    // localStorageに保存するだけにとどめる。
+    [
+      "gemini-2.5-flash-image",
+      "gemini-3.1-flash-lite-image",
+      "gemini-3.1-flash-image",
+    ].forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      modelOptions.appendChild(opt);
+    });
+    modelRow.appendChild(modelOptions);
+    wrap.appendChild(modelRow);
+
     return wrap;
   }
 
@@ -213,13 +246,29 @@
     apiErr.id = `gen-api-err-${step.id}`;
     apiBtn.addEventListener("click", async () => {
       apiErr.textContent = "";
+      const model = window.S2D.geminiApi.getModel();
       try {
-        const result = await window.S2D.geminiApi.callGemini({ prompt: promptBox.textContent });
+        const result = await window.S2D.geminiApi.callGemini({ prompt: promptBox.textContent, model });
         const img = result.images[0];
         if (!img) throw new Error("Geminiのレスポンスに画像が含まれていませんでした");
+        window.S2D.generationLog.append({
+          stepId: step.id,
+          promptFile: step.promptFile,
+          model,
+          source: "api",
+          adopted: true,
+        });
         applyStepOutput(step, `data:${img.mimeType};base64,${img.base64}`, "api");
       } catch (e) {
         apiErr.textContent = e.message;
+        window.S2D.generationLog.append({
+          stepId: step.id,
+          promptFile: step.promptFile,
+          model,
+          source: "api",
+          adopted: false,
+          error: e.message,
+        });
       }
     });
     pathApi.appendChild(apiBtn);
