@@ -21,8 +21,9 @@
      同時に見えなくなる問題への対応。canvas要素のwidth/height属性
      (WebGLの内部解像度、ゴールデンハッシュテスト等が前提にしている)は
      変更せず、CSS表示サイズだけをimgのobject-fit:containと同じ要領で
-     ビューポートの高さに収まるよう縮小する。 */
-  canvas { display: block; width: auto; height: auto; max-width: 100%; max-height: 48vh; }
+     ビューポートの高さに収まるよう縮小する。ピンチズーム/パンは
+     js/viewer.jsがこの上にtransform: scale/translateを重ねて操作する。 */
+  canvas { display: block; width: auto; height: auto; max-width: 100%; max-height: 48vh; touch-action: none; }
   .controls { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
   button {
     background: #2a2d34; color: #e8edf2; border: 1px solid #3c4049;
@@ -30,8 +31,8 @@
   }
   button:active { background: #3c4049; }
   #status { font-size: 12px; color: #6ee7b7; margin-top: 10px; white-space: pre-wrap; }
-  #state-controls { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-  .state-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  #state-controls { margin-top: 12px; }
+  .state-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
   .state-group-label { font-size: 12px; color: #9aa3ad; min-width: 70px; }
   .state-group button { padding: 6px 10px; }
   .export-row { margin-top: 12px; }
@@ -41,26 +42,38 @@
   }
   .parallax-controls label { font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
   .parallax-controls input[type="range"] { width: 100%; }
-  /* 表情/ポーズ切替は種類が多く(30種類超のパーツもある)デフォルトで
-     開いていると縦に長くなりすぎるため折りたたむ。呼吸・手振り等の
-     主要デモ(.controls)はこの外に置き、常に見える状態を保つ。 */
-  details.advanced { margin-top: 12px; }
-  details.advanced > summary {
-    cursor: pointer; font-size: 13px; color: #e8edf2; padding: 8px 0;
-    -webkit-tap-highlight-color: transparent;
+
+  /* 表示位置(パン/ズーム)を操作する十字ボタン */
+  .view-dpad {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(3, 42px);
+    grid-template-rows: repeat(3, 42px);
+    gap: 4px;
+    justify-content: center;
   }
+  .view-dpad button { padding: 0; font-size: 16px; }
+  #view-pan-reset { font-size: 9px; padding: 2px; line-height: 1.2; }
+
+  /* 状態切替(表情・目・口・手・ポーズ)のタブUI */
+  .state-tab-bar { display: flex; gap: 6px; flex-wrap: wrap; }
+  .state-tab {
+    font-size: 12.5px; padding: 7px 12px; border-radius: 8px;
+    border: 1px solid #3c4049; background: #2a2d34; color: #9aa3ad;
+  }
+  .state-tab.active { color: #e8edf2; border-color: #6ee7b7; background: #263229; }
+  .state-tab-panels { margin-top: 10px; }
+  .state-tab-panel { display: none; }
+  .state-tab-panel.active { display: block; }
+  .pose-hint { font-size: 11.5px; color: #9aa3ad; margin: 0 0 8px; line-height: 1.6; }
+  button.active-family { border-color: #6ee7b7; color: #6ee7b7; }
 </style>
 </head>
 <body>
 <div class="page">
   <h1>super2D 試作ビューア(プレースホルダーパーツ)</h1>
   <p class="note">
-    円・四角の仮パーツで、リグ(親子階層・ピボット)とアニメーション
-    (呼吸・首/髪の揺れ・まばたき・クロスフェード・肘の曲げ)の動作を
-    確認するための試作。実画像(Gemini生成物)への差し替えを前提とする。
-    <br />
-    characters/&lt;id&gt;/を丸ごとZIP化したファイルをこのページに
-    ドロップすると読み込めます。
+    characters/&lt;id&gt;/を丸ごとZIP化したファイルをこのページにドロップすると読み込めます。
   </p>
   <div class="stage-wrap">
     <canvas id="stage" width="600" height="760"></canvas>
@@ -69,18 +82,22 @@
     <button id="btn-wave">手を振る(肘の曲げデモ)</button>
     <button id="btn-talk">話す(口パクデモ)</button>
   </div>
-  <details class="advanced">
-    <summary>詳細設定(見返り・表情・ポーズ切替)</summary>
-    <div class="parallax-controls">
-      <label>頭のyaw(左右の見返り): <span id="yaw-value">0</span>°
-        <input type="range" id="yaw" min="-15" max="15" value="0" step="1" />
-      </label>
-      <label>頭のpitch(上下の見上げ/見下ろし): <span id="pitch-value">0</span>°
-        <input type="range" id="pitch" min="-15" max="15" value="0" step="1" />
-      </label>
-    </div>
-    <div id="state-controls"></div>
-  </details>
+  <div class="view-dpad">
+    <div></div><button id="view-pan-up" aria-label="上に移動">△</button><div></div>
+    <button id="view-pan-left" aria-label="左に移動">◁</button>
+    <button id="view-pan-reset" aria-label="表示をリセット">リセット</button>
+    <button id="view-pan-right" aria-label="右に移動">▷</button>
+    <div></div><button id="view-pan-down" aria-label="下に移動">▽</button><div></div>
+  </div>
+  <div class="parallax-controls">
+    <label>頭のyaw(左右の見返り): <span id="yaw-value">0</span>°
+      <input type="range" id="yaw" min="-15" max="15" value="0" step="1" />
+    </label>
+    <label>頭のpitch(上下の見上げ/見下ろし): <span id="pitch-value">0</span>°
+      <input type="range" id="pitch" min="-15" max="15" value="0" step="1" />
+    </label>
+  </div>
+  <div id="state-controls"></div>
   <div class="export-row">
     <button id="btn-export">character.jsonを書き出す</button>
   </div>

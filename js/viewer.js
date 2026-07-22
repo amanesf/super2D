@@ -735,16 +735,19 @@
   // ---- 状態切替UI(parts[*].statesから動的生成) ------------------------
   // srcの無いstateは原則ボタン化しない(B3受け入れ条件)が、isRig(B4、
   // 全身スプライトから通常リグ表示へ戻すための特別枠)だけは例外。
-  function buildStateControls() {
-    const container = document.getElementById("state-controls");
-    if (!container) return;
-    container.innerHTML = "";
+  // ボタンの種類が多く(body_poseだけで30種類超)フラット表示だと縦に
+  // 長くなりすぎるため、パーツをカテゴリごとのタブに分ける。
+  // body_poseは専用UI(buildBodyPoseActionControls)で別扱いする。
+  const STATE_CATEGORY_DEFS = [
+    { key: "expression", label: "表情", parts: ["head_base"] },
+    { key: "face", label: "目・口", parts: ["eye_l", "eye_r", "mouth"] },
+    { key: "hands", label: "手", parts: ["hand_r", "hand_l"] },
+  ];
 
-    for (const [name, part] of Object.entries(manifest.parts)) {
-      if (!part.states) continue;
+  function buildPartStateGroups(panel, partNames) {
+    for (const name of partNames) {
+      const part = manifest.parts[name];
       const withSrc = Object.entries(part.states).filter(([, entry]) => entry && (entry.src || entry.isRig));
-      if (withSrc.length === 0) continue;
-
       const group = document.createElement("div");
       group.className = "state-group";
       group.dataset.part = name;
@@ -762,8 +765,296 @@
         });
         group.appendChild(btn);
       }
-      container.appendChild(group);
+      panel.appendChild(group);
     }
+  }
+
+  function buildStateControls() {
+    const container = document.getElementById("state-controls");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const partToCategory = {};
+    for (const def of STATE_CATEGORY_DEFS) {
+      for (const p of def.parts) partToCategory[p] = def.key;
+    }
+    const categoryPartNames = new Map(STATE_CATEGORY_DEFS.map((d) => [d.key, []]));
+    const otherParts = [];
+    let hasBodyPose = false;
+
+    for (const [name, part] of Object.entries(manifest.parts)) {
+      if (!part.states) continue;
+      const withSrc = Object.entries(part.states).filter(([, entry]) => entry && (entry.src || entry.isRig));
+      if (withSrc.length === 0) continue;
+      if (name === "body_pose") {
+        hasBodyPose = true;
+        continue;
+      }
+      const catKey = partToCategory[name];
+      if (catKey) categoryPartNames.get(catKey).push(name);
+      else otherParts.push(name);
+    }
+
+    const tabs = [];
+    for (const def of STATE_CATEGORY_DEFS) {
+      const names = categoryPartNames.get(def.key);
+      if (names.length === 0) continue;
+      tabs.push({ key: def.key, label: def.label, build: (panel) => buildPartStateGroups(panel, names) });
+    }
+    if (hasBodyPose) {
+      tabs.push({ key: "pose", label: "ポーズ", build: (panel) => buildBodyPoseActionControls(panel) });
+    }
+    if (otherParts.length > 0) {
+      tabs.push({ key: "other", label: "その他", build: (panel) => buildPartStateGroups(panel, otherParts) });
+    }
+    if (tabs.length === 0) return;
+
+    const tabBar = document.createElement("div");
+    tabBar.className = "state-tab-bar";
+    const panelsWrap = document.createElement("div");
+    panelsWrap.className = "state-tab-panels";
+
+    tabs.forEach((tab, i) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "state-tab" + (i === 0 ? " active" : "");
+      btn.textContent = tab.label;
+      btn.dataset.tabKey = tab.key;
+      btn.addEventListener("click", () => {
+        tabBar.querySelectorAll(".state-tab").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        panelsWrap.querySelectorAll(".state-tab-panel").forEach((p) => p.classList.remove("active"));
+        panelsWrap.querySelector(`.state-tab-panel[data-tab-key="${tab.key}"]`).classList.add("active");
+      });
+      tabBar.appendChild(btn);
+
+      const panel = document.createElement("div");
+      panel.className = "state-tab-panel" + (i === 0 ? " active" : "");
+      panel.dataset.tabKey = tab.key;
+      tab.build(panel);
+      panelsWrap.appendChild(panel);
+    });
+
+    container.appendChild(tabBar);
+    container.appendChild(panelsWrap);
+  }
+
+  // ---- body_pose: 角度とアクションをUI上で分離する ---------------------
+  // character.jsonのbody_pose.statesは"walk_mid_90"のように角度と
+  // アクションが合体した名前で持っている(全角度×全アクション分の画像を
+  // 生成するとコストが跳ね上がるため、歩行/走行/ジャンプは0/90/180/270
+  // の4方向だけ用意する設計、PLAN.md「Stage G」検討時の相談を踏まえた
+  // 判断)。新規アセット生成はせず、UI側だけで「アクション」(タブ内の
+  // ボタン)と「角度」(キャンバスの左右ドラッグで連続的に動かせる)を
+  // 別軸に見せ、選んだアクションの中で実際に存在する最も近い角度の
+  // フレームにスナップする。
+  let bodyPoseFamilies = null; // Map<familyKey, {label, angleMap: Map<deg,stateKey>|null, singleState?}>
+  let currentBodyPoseFamilyKey = null;
+  let desiredAngleDeg = 0;
+
+  const BODY_POSE_ANGLE_PATTERNS = [
+    { re: /^angle_(\d+)$/, family: "angle", label: "ターンテーブル" },
+    { re: /^walk_mid_(\d+)$/, family: "walk", label: "歩行" },
+    { re: /^run_mid_(\d+)$/, family: "run", label: "走行" },
+    { re: /^jump_(\d+)$/, family: "jump", label: "ジャンプ" },
+  ];
+
+  function analyzeBodyPoseFamilies(part) {
+    const withSrc = Object.entries(part.states || {}).filter(([, entry]) => entry && (entry.src || entry.isRig));
+    const families = new Map();
+    for (const [stateName] of withSrc) {
+      let matched = false;
+      for (const p of BODY_POSE_ANGLE_PATTERNS) {
+        const m = stateName.match(p.re);
+        if (m) {
+          matched = true;
+          if (!families.has(p.family)) families.set(p.family, { label: p.label, angleMap: new Map() });
+          families.get(p.family).angleMap.set(Number(m[1]), stateName);
+          break;
+        }
+      }
+      if (!matched) {
+        families.set(stateName, { label: translateStateName(stateName), angleMap: null, singleState: stateName });
+      }
+    }
+    return families;
+  }
+
+  function nearestAngleState(angleMap, deg) {
+    let best = null;
+    let bestDist = Infinity;
+    for (const [a, stateKey] of angleMap) {
+      const d = Math.min(Math.abs(a - deg), 360 - Math.abs(a - deg));
+      if (d < bestDist) {
+        bestDist = d;
+        best = stateKey;
+      }
+    }
+    return best;
+  }
+
+  function applyBodyPoseState() {
+    if (!bodyPoseFamilies || !currentBodyPoseFamilyKey) return;
+    const family = bodyPoseFamilies.get(currentBodyPoseFamilyKey);
+    if (!family) return;
+    state.body_pose.currentState = family.angleMap
+      ? nearestAngleState(family.angleMap, desiredAngleDeg)
+      : family.singleState;
+  }
+
+  function buildBodyPoseActionControls(panel) {
+    const part = manifest.parts.body_pose;
+    bodyPoseFamilies = analyzeBodyPoseFamilies(part);
+    if (!currentBodyPoseFamilyKey || !bodyPoseFamilies.has(currentBodyPoseFamilyKey)) {
+      currentBodyPoseFamilyKey = bodyPoseFamilies.keys().next().value;
+    }
+
+    const hint = document.createElement("p");
+    hint.className = "pose-hint";
+    hint.textContent =
+      "アクションを選んでから、キャンバスを左右にドラッグすると角度が変わります" +
+      "(そのアクションに用意が無い角度は、近い角度のコマにスナップします)。";
+    panel.appendChild(hint);
+
+    const group = document.createElement("div");
+    group.className = "state-group";
+    group.dataset.part = "body_pose";
+    for (const [key, family] of bodyPoseFamilies) {
+      const btn = document.createElement("button");
+      btn.textContent = family.label;
+      btn.dataset.family = key;
+      if (key === currentBodyPoseFamilyKey) btn.classList.add("active-family");
+      btn.addEventListener("click", () => {
+        currentBodyPoseFamilyKey = key;
+        panel.querySelectorAll("[data-family]").forEach((b) => b.classList.remove("active-family"));
+        btn.classList.add("active-family");
+        applyBodyPoseState();
+      });
+      group.appendChild(btn);
+    }
+    panel.appendChild(group);
+
+    applyBodyPoseState();
+  }
+
+  // ---- ビューポート操作: ピンチズーム・ドラッグ(角度orパン)・十字ボタン ---
+  // canvasのwidth/height属性(WebGLの内部解像度、gl.readPixels前提の
+  // テスト群)は変更せず、CSSのtransform:scale/translateだけを操作する
+  // (見た目のズーム/パンであり、描画バッファには影響しない)。
+  let viewZoom = 1;
+  let viewPanX = 0;
+  let viewPanY = 0;
+  const VIEW_MIN_ZOOM = 0.6;
+  const VIEW_MAX_ZOOM = 3;
+  const VIEW_PAN_STEP = 24;
+  const ANGLE_DRAG_PX_PER_DEG = 3; // このpx分ドラッグすると角度が1度動く(画面幅程度で1回転強)
+
+  function applyViewTransform() {
+    canvas.style.transform = `translate(${viewPanX}px, ${viewPanY}px) scale(${viewZoom})`;
+  }
+
+  function resetViewTransform() {
+    viewZoom = 1;
+    viewPanX = 0;
+    viewPanY = 0;
+    applyViewTransform();
+  }
+
+  function setupViewportControls() {
+    const activePointers = new Map();
+    let pinchStartDist = null;
+    let pinchStartZoom = 1;
+    let dragLastX = null;
+
+    function dist(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    // ブラウザ標準のスクロール/ピンチジェスチャーと競合しないようにする
+    canvas.style.touchAction = "none";
+
+    canvas.addEventListener("pointerdown", (e) => {
+      // 実ポインタが伴わない合成イベント(テスト等)や一部環境では
+      // setPointerCaptureが例外を投げることがある。キャプチャは要素外に
+      // 出た時も追跡を続けるための最適化に過ぎず失敗しても機能上は
+      // 問題ないため、ここで握りつぶして後続のジェスチャー処理を止めない。
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch (err) {
+        // 無視(上記コメント参照)
+      }
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (activePointers.size === 2) {
+        const pts = [...activePointers.values()];
+        pinchStartDist = dist(pts[0], pts[1]);
+        pinchStartZoom = viewZoom;
+        dragLastX = null;
+      } else if (activePointers.size === 1) {
+        dragLastX = e.clientX;
+      }
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      if (!activePointers.has(e.pointerId)) return;
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (activePointers.size >= 2) {
+        const pts = [...activePointers.values()];
+        const d = dist(pts[0], pts[1]);
+        if (pinchStartDist) {
+          viewZoom = Math.min(VIEW_MAX_ZOOM, Math.max(VIEW_MIN_ZOOM, pinchStartZoom * (d / pinchStartDist)));
+          applyViewTransform();
+        }
+      } else if (activePointers.size === 1 && dragLastX !== null) {
+        const dx = e.clientX - dragLastX;
+        if (bodyPoseFamilies && bodyPoseFamilies.size > 0) {
+          // body_poseがあるキャラはドラッグ=角度回転(ターンテーブル)に使う
+          desiredAngleDeg = (desiredAngleDeg + dx / ANGLE_DRAG_PX_PER_DEG + 360) % 360;
+          applyBodyPoseState();
+        } else {
+          // body_poseの無いキャラ(または未対応)ではドラッグ=パンにする
+          viewPanX += dx;
+          applyViewTransform();
+        }
+        dragLastX = e.clientX;
+      }
+    });
+
+    function endPointer(e) {
+      activePointers.delete(e.pointerId);
+      if (activePointers.size < 2) pinchStartDist = null;
+      if (activePointers.size === 1) {
+        const [p] = activePointers.values();
+        dragLastX = p.x;
+      } else {
+        dragLastX = null;
+      }
+    }
+    canvas.addEventListener("pointerup", endPointer);
+    canvas.addEventListener("pointercancel", endPointer);
+    canvas.addEventListener("pointerleave", endPointer);
+
+    // デスクトップでの動作確認用(タッチが無い環境でもズームを試せるように)
+    canvas.addEventListener(
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        viewZoom = Math.min(VIEW_MAX_ZOOM, Math.max(VIEW_MIN_ZOOM, viewZoom * (e.deltaY < 0 ? 1.1 : 0.9)));
+        applyViewTransform();
+      },
+      { passive: false }
+    );
+
+    const dpadUp = document.getElementById("view-pan-up");
+    const dpadDown = document.getElementById("view-pan-down");
+    const dpadLeft = document.getElementById("view-pan-left");
+    const dpadRight = document.getElementById("view-pan-right");
+    const dpadReset = document.getElementById("view-pan-reset");
+    if (dpadUp) dpadUp.addEventListener("click", () => { viewPanY -= VIEW_PAN_STEP; applyViewTransform(); });
+    if (dpadDown) dpadDown.addEventListener("click", () => { viewPanY += VIEW_PAN_STEP; applyViewTransform(); });
+    if (dpadLeft) dpadLeft.addEventListener("click", () => { viewPanX -= VIEW_PAN_STEP; applyViewTransform(); });
+    if (dpadRight) dpadRight.addEventListener("click", () => { viewPanX += VIEW_PAN_STEP; applyViewTransform(); });
+    if (dpadReset) dpadReset.addEventListener("click", resetViewTransform);
   }
 
   // ---- character.jsonの書き出し(読込中のmanifestをそのままBlob化) -------
@@ -970,6 +1261,7 @@
 
     const controls = setupControls();
     setupParallaxControls();
+    setupViewportControls();
 
     // 固定タイムステップ(120Hzサブステップ+アキュムレータ、C2)。
     // 可変dtのまま更新すると同じ入力でも実行タイミング次第で揺れが
@@ -1028,6 +1320,9 @@
     getWorldPivot(partName) {
       const world = computeWorldTransforms();
       return world[partName] ? { x: world[partName].x, y: world[partName].y } : null;
+    },
+    getPartCurrentState(partName) {
+      return state[partName] ? state[partName].currentState : undefined;
     },
     getPartNames() {
       return manifest ? Object.keys(manifest.parts || {}) : [];
