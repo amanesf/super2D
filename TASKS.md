@@ -217,7 +217,7 @@
 
 ## Stage E — 圧縮・書き出し
 
-- [ ] **E1: `js/compress.js`+ZIP書き出し**
+- [x] **E1: `js/compress.js`+ZIP書き出し**
   - `canvas.toBlob("image/webp", q)`でsource→public生成(品質は設定
     可能、既定0.9)。character.json+public+任意source+generation_log
     をZIP一括ダウンロード
