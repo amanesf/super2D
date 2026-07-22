@@ -194,12 +194,11 @@
     const modelOptions = document.createElement("datalist");
     modelOptions.id = "gemini-model-options";
     // モデルIDは変更が早いため決め打ちのプルダウンにはせず、候補として
-    // 出しつつ自由入力も受け付ける(datalist)。既定値は変更せず
-    // js/gemini_api.jsのDEFAULT_MODELのまま、ここではユーザーの選択を
-    // localStorageに保存するだけにとどめる。
+    // 出しつつ自由入力も受け付ける(datalist)。既定値はjs/gemini_api.js
+    // のDEFAULT_MODEL(Nano Banana 2 Lite)を使う。
     [
-      "gemini-2.5-flash-image",
       "gemini-3.1-flash-lite-image",
+      "gemini-2.5-flash-image",
       "gemini-3.1-flash-image",
     ].forEach((m) => {
       const opt = document.createElement("option");

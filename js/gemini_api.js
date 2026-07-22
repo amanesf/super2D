@@ -7,7 +7,7 @@
 
   const KEY_STORAGE = "s2d_gemini_api_key";
   const MODEL_STORAGE = "s2d_gemini_model";
-  const DEFAULT_MODEL = "gemini-2.5-flash-image";
+  const DEFAULT_MODEL = "gemini-3.1-flash-lite-image"; // Nano Banana 2 Lite。低コスト・低レイテンシでパーツ数の多い本パイプラインに合う
   const CALL_LOG_STORAGE = "s2d_gemini_call_log";
   const MAX_CALLS_PER_SESSION = 200; // 誤操作による無限リトライ等での爆発課金を防ぐ上限
 
