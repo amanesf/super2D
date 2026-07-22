@@ -40,7 +40,7 @@
 | `parentAnchor` | string | `parent`が`null`でなければ○ | 親の`anchors`のキー名。子の`pivot`をこの点に一致させて配置する |
 | `pivot` | `[x, y]` | ○ | パーツのローカル座標系における回転・配置の基準点(px) |
 | `anchors` | object | 任意 | このパーツに子パーツを接続するための命名点のマップ(`{名前: [x, y]}`、ローカル座標)。子を持たないパーツには無い |
-| `motion` | string | ○ | ビューアがこのパーツをどう動かすかを選ぶ種別タグ。現行の値: `procedural-breathe`(呼吸)/`procedural-sway`(首振り追従)/`procedural-mesh-sway`(遅延揺れ)/`procedural-mesh-bend`(関節メッシュ変形、頂点スキニングで親パーツとの継ぎ目を無くす。C2.5)/`discrete-crossfade`(状態切替)/`static-cutout`(無変形)/`sprite-select`(全身1枚スプライト切替、後述)。**値の一覧は本書が正**であり、ビューア実装(`js/viewer.js`)側でパーツ名を直書きした分岐をしないことがB2の受け入れ条件 |
+| `motion` | string | ○ | ビューアがこのパーツをどう動かすかを選ぶ種別タグ。現行の値: `procedural-breathe`(呼吸)/`procedural-sway`(首振り追従)/`procedural-mesh-sway`(遅延揺れ)/`procedural-mesh-bend`(関節メッシュ変形、頂点スキニングで親パーツとの継ぎ目を無くす。C2.5)/`discrete-crossfade`(状態切替、旧→新テクスチャを短時間アルファブレンドする。C3、後述)/`static-cutout`(無変形)/`sprite-select`(全身1枚スプライト切替、後述)。**値の一覧は本書が正**であり、ビューア実装(`js/viewer.js`)側でパーツ名を直書きした分岐をしないことがB2の受け入れ条件 |
 | `states` | object | `src`が無い場合は○ | 状態名→`{src}`(または`{isRig: true}`、後述)のマップ。`src`を持つ状態のみがビューア上で選択可能(UIボタン化の対象、B3参照)。`src`の無い状態(例: 現行のプレースホルダーにおける`arm_upper_r.states.raised`)は「将来ここに画像が入る」という予約枠であり、ビューアはボタンを出さない。ただし`isRig: true`の状態(後述)は例外でボタン化される |
 | `motionParams` | object | 任意(`motion`が数値駆動の種別なら実質必須) | 揺れの振幅・周波数・追従比率など、`motion`種別ごとの数値パラメータ(後述)。ビューアはこの数値だけを読んで挙動を決め、パーツ名をコードに直書きしない(B2) |
 | `defaultState` | string | `states`がある場合は○ | 読込直後・リセット時に選ばれる状態名。`states`のキーに存在すること |
@@ -66,6 +66,21 @@
 主駆動の角度(上表)に加算される。腕のように「状態切替(`discrete-crossfade`)
 はするが、待機中は僅かに揺れてほしい」パーツに使う(現行の
 `arm_upper_r`/`arm_upper_l`/`arm_lower_r`/`arm_lower_l`)
+
+### `motion: "discrete-crossfade"`(状態切替のクロスフェード、C3)
+
+`states`を持つパーツ(目・口など)の`currentState`が切り替わった瞬間、
+旧テクスチャ→新テクスチャへ0.12秒(`js/viewer.js`の`CROSSFADE_DURATION`、
+character.jsonでは設定不可の固定値)でアルファブレンドしながら遷移する。
+`half`状態の画像を別途用意しなくても、既存の`states.*.src`だけで
+「パチッと点滅」ではなく遷移して見えるようにする(まばたきのopen⇄closed・
+口パクのviseme間の遷移、いずれもこの仕組みで賄う)。
+
+- 実装は`js/viewer.js`の`updateCrossfades()`(状態変化を検知して
+  `fromSrc`/`toSrc`/`startT`を記録)と`draw()`(遷移中は両テクスチャを
+  `frac`/`1-frac`の不透明度で重ね描き)
+- 遷移が完了する(`(t - startT) >= CROSSFADE_DURATION`)と通常通り
+  新テクスチャ1枚のみ描画される
 
 ### `motion: "procedural-mesh-bend"`(関節メッシュ変形、C2.5)
 

@@ -44,12 +44,16 @@
       vTexCoord = aUnit;
     }
   `;
+  // uAlpha: discrete-crossfade(C3)で新旧2枚のテクスチャを重ねて描く際の
+  // 不透明度。既定1(完全不透明、他の全パーツはこの既定値のまま使う)。
   const FRAG_SRC = `
     precision mediump float;
     varying vec2 vTexCoord;
     uniform sampler2D uTexture;
+    uniform float uAlpha;
     void main() {
-      gl_FragColor = texture2D(uTexture, vTexCoord);
+      vec4 texel = texture2D(uTexture, vTexCoord);
+      gl_FragColor = vec4(texel.rgb, texel.a * uAlpha);
     }
   `;
 
@@ -86,6 +90,7 @@
     scale: gl.getUniformLocation(program, "uScale"),
     resolution: gl.getUniformLocation(program, "uResolution"),
     texture: gl.getUniformLocation(program, "uTexture"),
+    alpha: gl.getUniformLocation(program, "uAlpha"),
   };
 
   gl.viewport(0, 0, canvas.width, canvas.height);
@@ -106,7 +111,7 @@
   // 矩形1枚を描く(パーツ・全身スプライト共通)。pivotが(0,0)・scaleが
   // (1,1)・angleが0なら、(0,0)-(w,h)のまま画面左上基準で描かれる
   // (body_poseの全身スプライトはこの既定値で使う)。
-  function drawQuad(texture, size, pivot, worldPos, angleRad, scaleXY) {
+  function drawQuad(texture, size, pivot, worldPos, angleRad, scaleXY, alpha) {
     gl.useProgram(program);
     gl.bindBuffer(gl.ARRAY_BUFFER, unitBuf);
     gl.enableVertexAttribArray(aUnit);
@@ -118,6 +123,7 @@
     gl.uniform1f(uLoc.angle, angleRad);
     gl.uniform2f(uLoc.scale, scaleXY[0], scaleXY[1]);
     gl.uniform2f(uLoc.resolution, canvas.width, canvas.height);
+    gl.uniform1f(uLoc.alpha, alpha === undefined ? 1 : alpha);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -180,6 +186,7 @@
     scale: gl.getUniformLocation(bendProgram, "uScale"),
     resolution: gl.getUniformLocation(bendProgram, "uResolution"),
     texture: gl.getUniformLocation(bendProgram, "uTexture"),
+    alpha: gl.getUniformLocation(bendProgram, "uAlpha"),
   };
 
   // 重みは滑らかな smoothstep(ピボットからの距離/blendMarginPx)。
@@ -262,6 +269,7 @@
     gl.uniform1f(bendLoc.angleFull, angleFull);
     gl.uniform2f(bendLoc.scale, scaleXY[0], scaleXY[1]);
     gl.uniform2f(bendLoc.resolution, canvas.width, canvas.height);
+    gl.uniform1f(bendLoc.alpha, 1);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -279,6 +287,7 @@
   let textures = {}; // src -> WebGLTexture
   let bendMeshes = {}; // partName -> 関節メッシュ(procedural-mesh-bendのみ、C2.5)
   let state = {}; // partName -> { angle, offsetX, offsetY, currentState }
+  let crossfade = {}; // partName -> { fromSrc, toSrc, startT }(discrete-crossfadeのみ、C3)
 
   function getCharacterId() {
     const params = new URLSearchParams(window.location.search);
@@ -329,6 +338,7 @@
   async function buildAssets(manifestData, resolver) {
     const newImages = {};
     const newState = {};
+    const newCrossfade = {};
     for (const [name, part] of Object.entries(manifestData.parts)) {
       newState[name] = {
         angle: 0,
@@ -338,6 +348,9 @@
         scaleY: 1,
         currentState: part.defaultState || null,
       };
+      if (part.motion === "discrete-crossfade") {
+        newCrossfade[name] = { fromSrc: null, toSrc: null, startT: 0 };
+      }
     }
     const srcs = collectSrcs(manifestData);
     await Promise.all([...srcs].map((src) => loadImageInto(newImages, src, resolver)));
@@ -356,7 +369,7 @@
       newBendMeshes[name] = buildBendMesh(part, blendMarginPx);
     }
 
-    return { newImages, newTextures, newBendMeshes, newState };
+    return { newImages, newTextures, newBendMeshes, newCrossfade, newState };
   }
 
   // character.jsonを検証→画像読込→検証通過後にまとめて差し替える。
@@ -386,6 +399,7 @@
     images = built.newImages;
     textures = built.newTextures;
     bendMeshes = built.newBendMeshes;
+    crossfade = built.newCrossfade;
     state = built.newState;
 
     statusEl.style.color = "#6ee7b7";
@@ -467,21 +481,43 @@
     for (const name of manifest.drawOrder) {
       const part = manifest.parts[name];
       const w = world[name];
-      const src = partCurrentSrc(name, part);
-      if (!src) continue;
-      const texture = textures[src];
-      if (!texture) continue;
       const s = state[name];
-
       const mesh = bendMeshes[name];
+
       if (mesh) {
+        const src = partCurrentSrc(name, part);
+        const texture = src && textures[src];
+        if (!texture) continue;
         // C2.5: 親のワールド角度(自身のs.angleを含まない)〜完全な角度の間を
         // 頂点ごとの重みでブレンドし、親パーツとの継ぎ目を無くす。
         const angleBase = part.parent ? world[part.parent].angle : 0;
         drawBendMesh(mesh, texture, [w.x, w.y], angleBase, w.angle, [s.scaleX, s.scaleY]);
-      } else {
-        drawQuad(texture, [part.w, part.h], part.pivot, [w.x, w.y], w.angle, [s.scaleX, s.scaleY]);
+        continue;
       }
+
+      const cf = crossfade[name];
+      if (cf) {
+        // C3: discrete-crossfadeは遷移中、旧→新テクスチャをアルファブレンド
+        // して重ね描きする(まばたき・口パクの瞬間切替を無くす)。
+        const frac = Math.min(Math.max((t - cf.startT) / CROSSFADE_DURATION, 0), 1);
+        if (frac < 1 && cf.fromSrc && cf.fromSrc !== cf.toSrc) {
+          const fromTexture = textures[cf.fromSrc];
+          if (fromTexture) {
+            drawQuad(fromTexture, [part.w, part.h], part.pivot, [w.x, w.y], w.angle, [s.scaleX, s.scaleY], 1 - frac);
+          }
+          const toTexture = cf.toSrc && textures[cf.toSrc];
+          if (toTexture) {
+            drawQuad(toTexture, [part.w, part.h], part.pivot, [w.x, w.y], w.angle, [s.scaleX, s.scaleY], frac);
+          }
+          continue;
+        }
+      }
+
+      const src = partCurrentSrc(name, part);
+      if (!src) continue;
+      const texture = textures[src];
+      if (!texture) continue;
+      drawQuad(texture, [part.w, part.h], part.pivot, [w.x, w.y], w.angle, [s.scaleX, s.scaleY]);
     }
   }
 
@@ -559,6 +595,28 @@
         blinking = false;
         const doubleBlinkRoll = Math.random();
         nextBlinkAt = t + (doubleBlinkRoll < 0.15 ? 0.2 : 2 + Math.random() * 3.5);
+      }
+    }
+  }
+
+  // ---- discrete-crossfadeの状態遷移トラッキング(C3) ----------------------
+  // 「discrete-crossfade」という名前の通り、状態(state)が切り替わった
+  // 瞬間に旧→新テクスチャを短時間アルファブレンドすることで、まばたき
+  // (open/closed)や口パク(viseme)が瞬間切替(点滅)ではなく遷移して
+  // 見えるようにする。character.jsonにhalf状態の画像を追加しなくても、
+  // 既存のstates.*.srcだけで機能する。
+  const CROSSFADE_DURATION = 0.12;
+
+  function updateCrossfades() {
+    for (const [name, part] of Object.entries(manifest.parts)) {
+      if (part.motion !== "discrete-crossfade") continue;
+      const cf = crossfade[name];
+      if (!cf) continue;
+      const targetSrc = partCurrentSrc(name, part);
+      if (targetSrc !== cf.toSrc) {
+        cf.fromSrc = cf.toSrc;
+        cf.toSrc = targetSrc;
+        cf.startT = t;
       }
     }
   }
@@ -799,6 +857,7 @@
         updateIdle(FIXED_DT);
         updateWave(FIXED_DT, controls.waving);
         updateTalk(FIXED_DT, controls.talking);
+        updateCrossfades();
         accumulator -= FIXED_DT;
       }
 
