@@ -18,8 +18,9 @@ const path = require("path");
 const fs = require("fs");
 const { Jimp, rgbaToInt } = require("jimp");
 
-const OUT_DIR = path.join(__dirname, "..", "assets", "placeholder");
-const MANIFEST_PATH = path.join(__dirname, "..", "assets", "manifest.json");
+const CHARACTER_DIR = path.join(__dirname, "..", "characters", "placeholder-zero");
+const OUT_DIR = path.join(CHARACTER_DIR, "public");
+const MANIFEST_PATH = path.join(CHARACTER_DIR, "character.json");
 
 const COLORS = {
   skin: rgbaToInt(255, 224, 200, 255),
@@ -83,7 +84,7 @@ function fillEllipse(image, cx, cy, rx, ry, colorInt) {
 async function save(image, name) {
   const p = path.join(OUT_DIR, `${name}.png`);
   await image.write(p);
-  return `assets/placeholder/${name}.png`;
+  return `public/${name}.png`;
 }
 
 async function build() {
@@ -311,6 +312,8 @@ async function build() {
   }
 
   const manifest = {
+    format: "super2d-character",
+    formatVersion: 1,
     _comment: "円・四角のプレースホルダーで組んだ試作マニフェスト。実画像に差し替え前提。座標はこのプレースホルダー生成スクリプトが自分で決めた値(検出不要、既知)。",
     canvasStandard: [1024, 1024],
     rootAnchor: [300, 420],

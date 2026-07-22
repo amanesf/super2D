@@ -1,4 +1,6 @@
 {
+  "format": "super2d-character",
+  "formatVersion": 1,
   "_comment": "円・四角のプレースホルダーで組んだ試作マニフェスト。実画像に差し替え前提。座標はこのプレースホルダー生成スクリプトが自分で決めた値(検出不要、既知)。",
   "canvasStandard": [
     1024,
@@ -10,7 +12,7 @@
   ],
   "parts": {
     "torso": {
-      "src": "assets/placeholder/torso.png",
+      "src": "public/torso.png",
       "w": 180,
       "h": 240,
       "parent": null,
@@ -48,7 +50,7 @@
       "drawOrderHint": 10
     },
     "head_base": {
-      "src": "assets/placeholder/head_base.png",
+      "src": "public/head_base.png",
       "w": 170,
       "h": 170,
       "parent": "torso",
@@ -91,7 +93,7 @@
       "drawOrderHint": 30
     },
     "hair_back": {
-      "src": "assets/placeholder/hair_back.png",
+      "src": "public/hair_back.png",
       "w": 90,
       "h": 280,
       "parent": "head_base",
@@ -105,7 +107,7 @@
       "drawOrderHint": 5
     },
     "hair_front": {
-      "src": "assets/placeholder/hair_front.png",
+      "src": "public/hair_front.png",
       "w": 110,
       "h": 55,
       "parent": "head_base",
@@ -118,7 +120,7 @@
       "drawOrderHint": 40
     },
     "hair_side_l": {
-      "src": "assets/placeholder/hair_side_l.png",
+      "src": "public/hair_side_l.png",
       "w": 34,
       "h": 140,
       "parent": "head_base",
@@ -131,7 +133,7 @@
       "drawOrderHint": 35
     },
     "hair_side_r": {
-      "src": "assets/placeholder/hair_side_r.png",
+      "src": "public/hair_side_r.png",
       "w": 34,
       "h": 140,
       "parent": "head_base",
@@ -155,10 +157,10 @@
       "motion": "discrete-crossfade",
       "states": {
         "open": {
-          "src": "assets/placeholder/eye_l_open.png"
+          "src": "public/eye_l_open.png"
         },
         "closed": {
-          "src": "assets/placeholder/eye_l_closed.png"
+          "src": "public/eye_l_closed.png"
         }
       },
       "defaultState": "open",
@@ -176,10 +178,10 @@
       "motion": "discrete-crossfade",
       "states": {
         "open": {
-          "src": "assets/placeholder/eye_r_open.png"
+          "src": "public/eye_r_open.png"
         },
         "closed": {
-          "src": "assets/placeholder/eye_r_closed.png"
+          "src": "public/eye_r_closed.png"
         }
       },
       "defaultState": "open",
@@ -197,17 +199,17 @@
       "motion": "discrete-crossfade",
       "states": {
         "rest": {
-          "src": "assets/placeholder/mouth_closed.png"
+          "src": "public/mouth_closed.png"
         },
         "aa": {
-          "src": "assets/placeholder/mouth_open.png"
+          "src": "public/mouth_open.png"
         }
       },
       "defaultState": "rest",
       "drawOrderHint": 51
     },
     "cape": {
-      "src": "assets/placeholder/cape.png",
+      "src": "public/cape.png",
       "w": 160,
       "h": 220,
       "parent": "torso",
@@ -220,7 +222,7 @@
       "drawOrderHint": 8
     },
     "arm_upper_r": {
-      "src": "assets/placeholder/arm_upper_r.png",
+      "src": "public/arm_upper_r.png",
       "w": 54,
       "h": 140,
       "parent": "torso",
@@ -246,7 +248,7 @@
       "drawOrderHint": 20
     },
     "arm_lower_r": {
-      "src": "assets/placeholder/arm_lower_r.png",
+      "src": "public/arm_lower_r.png",
       "w": 48,
       "h": 130,
       "parent": "arm_upper_r",
@@ -266,7 +268,7 @@
       "drawOrderHint": 21
     },
     "hand_r": {
-      "src": "assets/placeholder/hand_r.png",
+      "src": "public/hand_r.png",
       "w": 38,
       "h": 38,
       "parent": "arm_lower_r",
@@ -286,7 +288,7 @@
       "drawOrderHint": 22
     },
     "arm_upper_l": {
-      "src": "assets/placeholder/arm_upper_l.png",
+      "src": "public/arm_upper_l.png",
       "w": 54,
       "h": 140,
       "parent": "torso",
@@ -312,7 +314,7 @@
       "drawOrderHint": 42
     },
     "arm_lower_l": {
-      "src": "assets/placeholder/arm_lower_l.png",
+      "src": "public/arm_lower_l.png",
       "w": 48,
       "h": 130,
       "parent": "arm_upper_l",
@@ -332,7 +334,7 @@
       "drawOrderHint": 43
     },
     "hand_l": {
-      "src": "assets/placeholder/hand_l.png",
+      "src": "public/hand_l.png",
       "w": 38,
       "h": 38,
       "parent": "arm_lower_l",
@@ -352,7 +354,7 @@
       "drawOrderHint": 44
     },
     "leg_upper_r": {
-      "src": "assets/placeholder/leg_upper_r.png",
+      "src": "public/leg_upper_r.png",
       "w": 58,
       "h": 150,
       "parent": "torso",
@@ -371,7 +373,7 @@
       "drawOrderHint": 12
     },
     "leg_lower_r": {
-      "src": "assets/placeholder/leg_lower_r.png",
+      "src": "public/leg_lower_r.png",
       "w": 52,
       "h": 160,
       "parent": "leg_upper_r",
@@ -385,7 +387,7 @@
       "drawOrderHint": 13
     },
     "leg_upper_l": {
-      "src": "assets/placeholder/leg_upper_l.png",
+      "src": "public/leg_upper_l.png",
       "w": 58,
       "h": 150,
       "parent": "torso",
@@ -404,7 +406,7 @@
       "drawOrderHint": 14
     },
     "leg_lower_l": {
-      "src": "assets/placeholder/leg_lower_l.png",
+      "src": "public/leg_lower_l.png",
       "w": 52,
       "h": 160,
       "parent": "leg_upper_l",

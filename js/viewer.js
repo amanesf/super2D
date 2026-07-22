@@ -1,5 +1,5 @@
 // super2D 試作ビューア(プレースホルダーパーツで動作確認用)
-// マニフェスト(assets/manifest.json)の親子階層・ピボットを読み、
+// character.json(characters/<id>/character.json)の親子階層・ピボットを読み、
 // Canvas2Dで組み立てて描画・アニメーションする。
 // 本番はWebGL+メッシュ変形を想定しているが、リグ・アニメーションの
 // ロジック(階層変換・呼吸/揺れ/まばたき・クロスフェード)自体は
@@ -12,8 +12,14 @@
   const statusEl = document.getElementById("status");
 
   let manifest = null;
+  let characterDir = ""; // character.jsonがあるディレクトリ(相対src解決の基点)
   const images = {}; // src -> HTMLImageElement
   const state = {}; // partName -> { angle, offsetX, offsetY, currentState }
+
+  function getCharacterId() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("character") || "placeholder-zero";
+  }
 
   function loadImage(src) {
     return new Promise((resolve, reject) => {
@@ -24,7 +30,7 @@
         resolve(img);
       };
       img.onerror = reject;
-      img.src = src;
+      img.src = characterDir + src;
     });
   }
 
@@ -216,8 +222,11 @@
   }
 
   async function main() {
-    statusEl.textContent = "manifest読み込み中…";
-    const res = await fetch("assets/manifest.json");
+    const characterId = getCharacterId();
+    characterDir = `characters/${characterId}/`;
+    statusEl.textContent = "character.json読み込み中…";
+    const res = await fetch(`${characterDir}character.json`);
+    if (!res.ok) throw new Error(`character.jsonの読み込みに失敗(${res.status}): ${characterDir}character.json`);
     manifest = await res.json();
     await preloadAll();
     statusEl.textContent = `読み込み完了(パーツ${Object.keys(manifest.parts).length}個、プレースホルダー画像)`;
