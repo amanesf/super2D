@@ -81,7 +81,7 @@
     (`rig`という特別状態でリグ描画に戻す)。詳細は
     docs/character-format.mdの「motion: "sprite-select"」節を参照
 
-- [ ] **B5: ZIPのdrag&drop読込**
+- [x] **B5: ZIPのdrag&drop読込**
   - 触る: `viewer.html`/`js/viewer.js`(+ZIP展開の小さな自作実装または
     ベンダーライブラリを`js/vendor/`に同梱。CDN読込は不可=CSP/オフライン
     方針)

@@ -11,27 +11,17 @@
   const ctx = canvas.getContext("2d");
   const statusEl = document.getElementById("status");
 
+  // manifest/images/stateは差し替え可能(B5、ZIPドロップでの読込直後に
+  // まとめて入れ替える)。draw()等は常にこの時点の値を参照するので、
+  // 「読込完了後に一括で差し替える」ことで半端な状態を描画させない。
   let manifest = null;
   let characterDir = ""; // character.jsonがあるディレクトリ(相対src解決の基点)
-  const images = {}; // src -> HTMLImageElement
-  const state = {}; // partName -> { angle, offsetX, offsetY, currentState }
+  let images = {}; // src -> HTMLImageElement
+  let state = {}; // partName -> { angle, offsetX, offsetY, currentState }
 
   function getCharacterId() {
     const params = new URLSearchParams(window.location.search);
     return params.get("character") || "placeholder-zero";
-  }
-
-  function loadImage(src) {
-    return new Promise((resolve, reject) => {
-      if (images[src]) return resolve(images[src]);
-      const img = new Image();
-      img.onload = () => {
-        images[src] = img;
-        resolve(img);
-      };
-      img.onerror = reject;
-      img.src = characterDir + src;
-    });
   }
 
   function partCurrentSrc(name, part) {
@@ -44,16 +34,42 @@
     return null;
   }
 
-  async function preloadAll() {
+  // character.jsonが参照する全画像srcの集合(重複なし)。
+  // 壊れたmanifestData(parts自体が欠けている等)でも例外を投げない。
+  function collectSrcs(manifestData) {
     const srcs = new Set();
-    for (const [name, part] of Object.entries(manifest.parts)) {
+    const parts = manifestData && typeof manifestData.parts === "object" ? manifestData.parts : {};
+    for (const part of Object.values(parts)) {
+      if (!part || typeof part !== "object") continue;
       if (part.src) srcs.add(part.src);
-      if (part.states) {
+      if (part.states && typeof part.states === "object") {
         for (const st of Object.values(part.states)) {
-          if (st.src) srcs.add(st.src);
+          if (st && st.src) srcs.add(st.src);
         }
       }
-      state[name] = {
+    }
+    return srcs;
+  }
+
+  function loadImageInto(imagesMap, src, resolver) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        imagesMap[src] = img;
+        resolve(img);
+      };
+      img.onerror = () => reject(new Error(`画像の読み込みに失敗しました: ${src}`));
+      img.src = resolver(src);
+    });
+  }
+
+  // manifestDataの画像を全部読み込み、新しいimages/stateを作って返す
+  // (既存の画面が参照している共有の images/state にはまだ触れない)。
+  async function buildAssets(manifestData, resolver) {
+    const newImages = {};
+    const newState = {};
+    for (const [name, part] of Object.entries(manifestData.parts)) {
+      newState[name] = {
         angle: 0,
         offsetX: 0,
         offsetY: 0,
@@ -62,7 +78,42 @@
         currentState: part.defaultState || null,
       };
     }
-    await Promise.all([...srcs].map(loadImage));
+    const srcs = collectSrcs(manifestData);
+    await Promise.all([...srcs].map((src) => loadImageInto(newImages, src, resolver)));
+    return { newImages, newState };
+  }
+
+  // character.jsonを検証→画像読込→検証通過後にまとめて差し替える。
+  // 失敗時は既存の表示・アニメーションをそのまま維持する(A3のエラーを
+  // #statusに出すだけで、稼働中のキャラは壊さない)。
+  async function loadCharacterData(manifestData, resolver) {
+    const { errors, warnings } = window.S2D.validateCharacter(manifestData);
+    if (warnings.length > 0) console.warn("character.json警告:\n" + warnings.join("\n"));
+    if (errors.length > 0) {
+      statusEl.style.color = "#f87171";
+      statusEl.textContent = "character.jsonが不正です:\n" + errors.join("\n");
+      console.error("character.jsonエラー:\n" + errors.join("\n"));
+      return false;
+    }
+
+    let built;
+    try {
+      built = await buildAssets(manifestData, resolver);
+    } catch (err) {
+      statusEl.style.color = "#f87171";
+      statusEl.textContent = "画像の読み込みに失敗しました: " + err.message;
+      console.error(err);
+      return false;
+    }
+
+    manifest = manifestData;
+    images = built.newImages;
+    state = built.newState;
+
+    statusEl.style.color = "#6ee7b7";
+    statusEl.textContent = `読み込み完了(パーツ${Object.keys(manifest.parts).length}個、プレースホルダー画像)`;
+    buildStateControls();
+    return true;
   }
 
   // 親のワールド変換(位置+回転)を再帰的に解いて、各パーツのワールド
@@ -321,28 +372,95 @@
     state.mouth.currentState = Math.sin(t * 14) > 0.2 ? "aa" : "rest";
   }
 
+  // ---- ZIPのdrag&drop読込(B5) -----------------------------------------
+  // characters/<id>/を丸ごとZIP化したものを想定。character.jsonは
+  // ZIPのルート直下、またはフォルダごとZIP化した場合の1階層下を探す。
+  function showFatalError(message, err) {
+    statusEl.style.color = "#f87171";
+    statusEl.textContent = message;
+    if (err) console.error(err);
+  }
+
+  async function loadZipFile(file) {
+    if (!/\.zip$/i.test(file.name)) {
+      showFatalError(`ZIPファイルではありません: ${file.name}`);
+      return;
+    }
+    statusEl.style.color = "";
+    statusEl.textContent = `${file.name} を読み込み中…`;
+
+    let zip;
+    try {
+      zip = await window.JSZip.loadAsync(file);
+    } catch (err) {
+      showFatalError("ZIPの読み込みに失敗しました: " + err.message, err);
+      return;
+    }
+
+    const entryNames = Object.keys(zip.files);
+    const characterJsonPath = entryNames.find((p) => p === "character.json" || p.endsWith("/character.json"));
+    if (!characterJsonPath) {
+      showFatalError("ZIP内にcharacter.jsonが見つかりません(characters/<id>/直下をZIP化したものを想定)");
+      return;
+    }
+    const basePrefix = characterJsonPath.slice(0, characterJsonPath.length - "character.json".length);
+
+    let manifestData;
+    try {
+      const text = await zip.files[characterJsonPath].async("string");
+      manifestData = JSON.parse(text);
+    } catch (err) {
+      showFatalError("character.jsonの解析に失敗しました: " + err.message, err);
+      return;
+    }
+
+    // 画像はZIPエントリからBlob URLを作って解決する。参照先が見つからない
+    // 場合はここでエラーにする(スキーマ自体が壊れている場合はこの後の
+    // loadCharacterData内のA3バリデータがエラーを出す)。
+    const blobUrlMap = {};
+    try {
+      const srcs = collectSrcs(manifestData);
+      await Promise.all(
+        [...srcs].map(async (src) => {
+          const entry = zip.files[basePrefix + src];
+          if (!entry) throw new Error(`ZIP内に画像ファイルが見つかりません: ${src}`);
+          const blob = await entry.async("blob");
+          blobUrlMap[src] = URL.createObjectURL(blob);
+        })
+      );
+    } catch (err) {
+      showFatalError("ZIP内の画像展開に失敗しました: " + err.message, err);
+      return;
+    }
+
+    await loadCharacterData(manifestData, (src) => blobUrlMap[src]);
+  }
+
+  function setupDropZone() {
+    document.body.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    });
+    document.body.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) loadZipFile(file);
+    });
+  }
+
   async function main() {
     const characterId = getCharacterId();
     characterDir = `characters/${characterId}/`;
     statusEl.textContent = "character.json読み込み中…";
     const res = await fetch(`${characterDir}character.json`);
     if (!res.ok) throw new Error(`character.jsonの読み込みに失敗(${res.status}): ${characterDir}character.json`);
-    manifest = await res.json();
+    const manifestData = await res.json();
 
-    const { errors, warnings } = window.S2D.validateCharacter(manifest);
-    if (warnings.length > 0) console.warn("character.json警告:\n" + warnings.join("\n"));
-    if (errors.length > 0) {
-      statusEl.style.color = "#f87171";
-      statusEl.textContent = "character.jsonが不正です:\n" + errors.join("\n");
-      console.error("character.jsonエラー:\n" + errors.join("\n"));
-      return;
-    }
+    const ok = await loadCharacterData(manifestData, (src) => characterDir + src);
+    if (!ok) return;
 
-    await preloadAll();
-    statusEl.textContent = `読み込み完了(パーツ${Object.keys(manifest.parts).length}個、プレースホルダー画像)`;
-
-    buildStateControls();
     setupExport();
+    setupDropZone();
 
     const controls = setupControls();
     let last = performance.now();

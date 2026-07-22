@@ -39,6 +39,9 @@
     円・四角の仮パーツで、リグ(親子階層・ピボット)とアニメーション
     (呼吸・首/髪の揺れ・まばたき・クロスフェード・肘の曲げ)の動作を
     確認するための試作。実画像(Gemini生成物)への差し替えを前提とする。
+    <br />
+    characters/&lt;id&gt;/を丸ごとZIP化したファイルをこのページに
+    ドロップすると読み込めます。
   </p>
   <div class="stage-wrap">
     <canvas id="stage" width="600" height="760"></canvas>
@@ -53,6 +56,7 @@
   </div>
   <div id="status">読み込み中…</div>
 </div>
+<script src="js/vendor/jszip.min.js"></script>
 <script src="js/validate.js"></script>
 <script src="js/viewer.js"></script>
 </body>
