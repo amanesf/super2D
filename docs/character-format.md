@@ -42,10 +42,29 @@
 | `anchors` | object | 任意 | このパーツに子パーツを接続するための命名点のマップ(`{名前: [x, y]}`、ローカル座標)。子を持たないパーツには無い |
 | `motion` | string | ○ | ビューアがこのパーツをどう動かすかを選ぶ種別タグ。現行の値: `procedural-breathe`(呼吸)/`procedural-sway`(首振り追従)/`procedural-mesh-sway`(遅延揺れ)/`procedural-mesh-bend`(関節曲げ、現状は剛体近似)/`discrete-crossfade`(状態切替)/`static-cutout`(無変形)。**値の一覧は本書が正**であり、ビューア実装(`js/viewer.js`)側でパーツ名を直書きした分岐をしないことがB2の受け入れ条件 |
 | `states` | object | `src`が無い場合は○ | 状態名→`{src}`のマップ。`src`を持つ状態のみがビューア上で選択可能(UIボタン化の対象、B3参照)。`src`の無い状態(例: 現行のプレースホルダーにおける`arm_upper_r.states.raised`)は「将来ここに画像が入る」という予約枠であり、ビューアはボタンを出さない |
+| `motionParams` | object | 任意(`motion`が数値駆動の種別なら実質必須) | 揺れの振幅・周波数・追従比率など、`motion`種別ごとの数値パラメータ(後述)。ビューアはこの数値だけを読んで挙動を決め、パーツ名をコードに直書きしない(B2) |
 | `defaultState` | string | `states`がある場合は○ | 読込直後・リセット時に選ばれる状態名。`states`のキーに存在すること |
 | `drawOrderHint` | number | 任意 | **authoring時のみ使う値**。`scripts/make_placeholder_parts.js`が`drawOrder`配列を機械生成する際のソートキー。ビューアは実行時にこのフィールドを読まない(読むのは常にトップレベルの`drawOrder`) |
 | `symmetry` | string | 任意 | 人間・生成パイプライン向けの注記(例: `"asymmetric"` = 左右非対称なので鏡像複製不可)。ビューアは読まない |
 | `note` | string | 任意 | 人間向けの自由記述(例: 「肘のメッシュ曲げ点デモ、プロトタイプは剛体2分割」)。ビューアは読まない |
+
+### `motionParams`のサブフィールド(`motion`種別ごと)
+
+`motion`の値に応じて、ビューア(`js/viewer.js`の`resolveIdleAngles()`)が
+読むサブフィールドが決まる。未指定のフィールドは既定値(角度0・振幅0・
+周波数1Hz)として扱われる。
+
+| `motion`の値 | `motionParams`のサブフィールド |
+|---|---|
+| `procedural-breathe` | `freqHz`(周波数)/ `ampScaleX`・`ampScaleY`(`scaleX`・`scaleY`の脈動振幅、1.0からの相対値) |
+| `procedural-sway` | `freqHz` / `ampRad`(回転角の振幅、ラジアン) |
+| `procedural-mesh-sway` | `freqHz` / `phase`(位相、ラジアン) / `ampRad` / `followRatio`(親パーツの`angle`にこの比率を掛けて自分の角度に加算する追従係数。`parent`が無ければ無視) |
+| `procedural-mesh-bend` / `discrete-crossfade` / `static-cutout` | 上記の主駆動は無し(角度は0のまま)。ただし後述の`idleSway`は共通して使える |
+
+**`idleSway`(任意、どの`motion`にも追加できる補助揺れ)**: `{ freqHz, phase, ampRad }`。
+主駆動の角度(上表)に加算される。腕のように「状態切替(`discrete-crossfade`)
+はするが、待機中は僅かに揺れてほしい」パーツに使う(現行の
+`arm_upper_r`/`arm_upper_l`/`arm_lower_r`/`arm_lower_l`)
 
 ## 実行時状態は含まない(境界)
 
@@ -68,10 +87,6 @@
 
 ## 予約(将来追加予定、現時点の実ファイルには存在しない)
 
-- **`parts.<name>.motionParams`(B2で追加予定)**: 揺れの振幅・周波数・
-  減衰・追従遅れなど、現在`js/viewer.js`にハードコードされている数値を
-  パーツごとにcharacter.json側へ移す。追加後は`motion`種別ごとに
-  読むべきサブフィールドを本書に追記する
 - **`generation_log`参照(D5で追加予定)**: studio.htmlでの生成時に
   記録される`generation_log.json`(時刻・モデル名・プロンプト版・入力
   ハッシュ・QC数値・採否)への参照。バンドル(ZIP)に同梱される想定で、

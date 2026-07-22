@@ -108,6 +108,7 @@ async function build() {
       },
       motion: "procedural-breathe",
       drawOrderHint: 10,
+      motionParams: { freqHz: 1.1, ampScaleX: 0.006, ampScaleY: 0.012 },
     };
   }
 
@@ -128,6 +129,7 @@ async function build() {
       },
       motion: "procedural-sway",
       drawOrderHint: 30,
+      motionParams: { freqHz: 0.6, ampRad: 0.035 },
     };
   }
 
@@ -146,6 +148,7 @@ async function build() {
       motion: "procedural-mesh-sway",
       symmetry: "asymmetric",
       drawOrderHint: 5,
+      motionParams: { followRatio: 0.4, freqHz: 0.4, phase: -0.9, ampRad: 0.09 },
     };
   }
 
@@ -161,6 +164,7 @@ async function build() {
       pivot: [55, 45],
       motion: "procedural-mesh-sway",
       drawOrderHint: 40,
+      motionParams: { followRatio: 0.6, freqHz: 0.6, phase: -0.4, ampRad: 0.05 },
     };
   }
 
@@ -176,6 +180,7 @@ async function build() {
       pivot: [17, 12],
       motion: "procedural-mesh-sway",
       drawOrderHint: 35,
+      motionParams: { followRatio: 0.5, freqHz: 0.55, phase: -0.6, ampRad: 0.06 },
     };
   }
 
@@ -232,6 +237,7 @@ async function build() {
       pivot: [80, 10],
       motion: "procedural-mesh-sway",
       drawOrderHint: 8,
+      motionParams: { followRatio: 0, freqHz: 0.35, phase: -0.3, ampRad: 0.05 },
     };
   }
 
@@ -250,6 +256,7 @@ async function build() {
       states: { rest: {}, raised: {}, forward: {}, back: {} },
       defaultState: "rest",
       drawOrderHint: side === "r" ? 20 : 42,
+      motionParams: { idleSway: { freqHz: 1.1, phase: side === "r" ? 1.0 : 1.6, ampRad: 0.02 } },
     };
 
     const lw = 48, lh = 130;
@@ -264,6 +271,7 @@ async function build() {
       motion: "procedural-mesh-bend",
       note: "肘のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
       drawOrderHint: side === "r" ? 21 : 43,
+      motionParams: { idleSway: { freqHz: 1.1, phase: side === "r" ? 1.0 : 1.6, ampRad: 0.015 } },
     };
 
     const hw = 38, hh = 38;

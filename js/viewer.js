@@ -139,32 +139,58 @@
   let blinking = false;
   let blinkT = 0;
 
+  // パーツごとのidle角度をmotion種別+motionParamsから解決する。
+  // procedural-mesh-swayは親パーツの角度に追従するため、親→子の順で
+  // 解決する必要がある(computeWorldTransforms()と同じresolve+memo方式)。
+  function resolveIdleAngles() {
+    const angleOf = {};
+
+    function resolve(name) {
+      if (angleOf[name] !== undefined) return angleOf[name];
+      const part = manifest.parts[name];
+      const s = state[name];
+      const mp = part.motionParams || {};
+      let angle = 0;
+
+      switch (part.motion) {
+        case "procedural-breathe": {
+          const freq = mp.freqHz ?? 1;
+          s.scaleX = 1 + Math.sin(t * freq) * (mp.ampScaleX ?? 0);
+          s.scaleY = 1 + Math.sin(t * freq) * (mp.ampScaleY ?? 0);
+          break;
+        }
+        case "procedural-sway": {
+          angle = Math.sin(t * (mp.freqHz ?? 1)) * (mp.ampRad ?? 0);
+          break;
+        }
+        case "procedural-mesh-sway": {
+          const parentAngle = part.parent ? resolve(part.parent) : 0;
+          angle =
+            parentAngle * (mp.followRatio ?? 0) +
+            Math.sin(t * (mp.freqHz ?? 1) + (mp.phase ?? 0)) * (mp.ampRad ?? 0);
+          break;
+        }
+        default:
+          break;
+      }
+
+      if (mp.idleSway) {
+        const isw = mp.idleSway;
+        angle += Math.sin(t * (isw.freqHz ?? 1) + (isw.phase ?? 0)) * (isw.ampRad ?? 0);
+      }
+
+      s.angle = angle;
+      angleOf[name] = angle;
+      return angle;
+    }
+
+    for (const name of Object.keys(manifest.parts)) resolve(name);
+  }
+
   function updateIdle(dt) {
     t += dt;
 
-    // 呼吸(胴体のY方向スケールをゆっくり脈動)
-    const breathe = 1 + Math.sin(t * 1.1) * 0.012;
-    state.torso.scaleY = breathe;
-    state.torso.scaleX = 1 + Math.sin(t * 1.1) * 0.006;
-
-    // 頭の首振り(緩やかにゆらゆら)
-    state.head_base.angle = Math.sin(t * 0.6) * 0.035;
-
-    // 髪(前髪・サイド・後ろ髪)は頭より少し遅れて追従するバネ風の揺れ。
-    // 単純な位相遅れ+減衰サインで疑似的にバネらしさを出す(本番は
-    // Verlet等の簡易物理を想定、まずは見た目の確認用)。
-    const headAngle = state.head_base.angle;
-    state.hair_front.angle = headAngle * 0.6 + Math.sin(t * 0.6 - 0.4) * 0.05;
-    state.hair_side_l.angle = headAngle * 0.5 + Math.sin(t * 0.55 - 0.6) * 0.06;
-    state.hair_side_r.angle = headAngle * 0.5 + Math.sin(t * 0.55 - 0.6) * 0.06;
-    state.hair_back.angle = headAngle * 0.4 + Math.sin(t * 0.4 - 0.9) * 0.09;
-    state.cape.angle = Math.sin(t * 0.35 - 0.3) * 0.05;
-
-    // 腕はごく僅かに呼吸と連動して揺れる(生命感)
-    state.arm_upper_r.angle = Math.sin(t * 1.1 + 1.0) * 0.02;
-    state.arm_upper_l.angle = Math.sin(t * 1.1 + 1.6) * 0.02;
-    state.arm_lower_r.angle = Math.sin(t * 1.1 + 1.0) * 0.015;
-    state.arm_lower_l.angle = Math.sin(t * 1.1 + 1.6) * 0.015;
+    resolveIdleAngles();
 
     // まばたき(ランダム間隔、たまに素早く2回)
     if (!blinking && t >= nextBlinkAt) {

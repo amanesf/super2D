@@ -50,7 +50,7 @@
   - 受け入れ: 呼吸の最大伸縮時でも首・肩・腰の各接続点にズレが出ない
     (接続部のズーム スクリーンショットを伸縮の山・谷で比較)
 
-- [ ] **B2: モーションパラメータのcharacter.json移行**
+- [x] **B2: モーションパラメータのcharacter.json移行**
   - 触る: `js/viewer.js`(ハードコードの振幅・周波数・減衰・追従遅れを
     manifest値で駆動、`motion`種別で分岐しパーツ名分岐を排除)、
     `make_placeholder_parts.js`(`motionParams`を書き出す)、A2の仕様書

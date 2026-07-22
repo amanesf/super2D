@@ -47,7 +47,12 @@
         ]
       },
       "motion": "procedural-breathe",
-      "drawOrderHint": 10
+      "drawOrderHint": 10,
+      "motionParams": {
+        "freqHz": 1.1,
+        "ampScaleX": 0.006,
+        "ampScaleY": 0.012
+      }
     },
     "head_base": {
       "src": "public/head_base.png",
@@ -90,7 +95,11 @@
         ]
       },
       "motion": "procedural-sway",
-      "drawOrderHint": 30
+      "drawOrderHint": 30,
+      "motionParams": {
+        "freqHz": 0.6,
+        "ampRad": 0.035
+      }
     },
     "hair_back": {
       "src": "public/hair_back.png",
@@ -104,7 +113,13 @@
       ],
       "motion": "procedural-mesh-sway",
       "symmetry": "asymmetric",
-      "drawOrderHint": 5
+      "drawOrderHint": 5,
+      "motionParams": {
+        "followRatio": 0.4,
+        "freqHz": 0.4,
+        "phase": -0.9,
+        "ampRad": 0.09
+      }
     },
     "hair_front": {
       "src": "public/hair_front.png",
@@ -117,7 +132,13 @@
         45
       ],
       "motion": "procedural-mesh-sway",
-      "drawOrderHint": 40
+      "drawOrderHint": 40,
+      "motionParams": {
+        "followRatio": 0.6,
+        "freqHz": 0.6,
+        "phase": -0.4,
+        "ampRad": 0.05
+      }
     },
     "hair_side_l": {
       "src": "public/hair_side_l.png",
@@ -130,7 +151,13 @@
         12
       ],
       "motion": "procedural-mesh-sway",
-      "drawOrderHint": 35
+      "drawOrderHint": 35,
+      "motionParams": {
+        "followRatio": 0.5,
+        "freqHz": 0.55,
+        "phase": -0.6,
+        "ampRad": 0.06
+      }
     },
     "hair_side_r": {
       "src": "public/hair_side_r.png",
@@ -143,7 +170,13 @@
         12
       ],
       "motion": "procedural-mesh-sway",
-      "drawOrderHint": 35
+      "drawOrderHint": 35,
+      "motionParams": {
+        "followRatio": 0.5,
+        "freqHz": 0.55,
+        "phase": -0.6,
+        "ampRad": 0.06
+      }
     },
     "eye_l": {
       "w": 34,
@@ -219,7 +252,13 @@
         10
       ],
       "motion": "procedural-mesh-sway",
-      "drawOrderHint": 8
+      "drawOrderHint": 8,
+      "motionParams": {
+        "followRatio": 0,
+        "freqHz": 0.35,
+        "phase": -0.3,
+        "ampRad": 0.05
+      }
     },
     "arm_upper_r": {
       "src": "public/arm_upper_r.png",
@@ -245,7 +284,14 @@
         "back": {}
       },
       "defaultState": "rest",
-      "drawOrderHint": 20
+      "drawOrderHint": 20,
+      "motionParams": {
+        "idleSway": {
+          "freqHz": 1.1,
+          "phase": 1,
+          "ampRad": 0.02
+        }
+      }
     },
     "arm_lower_r": {
       "src": "public/arm_lower_r.png",
@@ -265,7 +311,14 @@
       },
       "motion": "procedural-mesh-bend",
       "note": "肘のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
-      "drawOrderHint": 21
+      "drawOrderHint": 21,
+      "motionParams": {
+        "idleSway": {
+          "freqHz": 1.1,
+          "phase": 1,
+          "ampRad": 0.015
+        }
+      }
     },
     "hand_r": {
       "src": "public/hand_r.png",
@@ -311,7 +364,14 @@
         "back": {}
       },
       "defaultState": "rest",
-      "drawOrderHint": 42
+      "drawOrderHint": 42,
+      "motionParams": {
+        "idleSway": {
+          "freqHz": 1.1,
+          "phase": 1.6,
+          "ampRad": 0.02
+        }
+      }
     },
     "arm_lower_l": {
       "src": "public/arm_lower_l.png",
@@ -331,7 +391,14 @@
       },
       "motion": "procedural-mesh-bend",
       "note": "肘のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
-      "drawOrderHint": 43
+      "drawOrderHint": 43,
+      "motionParams": {
+        "idleSway": {
+          "freqHz": 1.1,
+          "phase": 1.6,
+          "ampRad": 0.015
+        }
+      }
     },
     "hand_l": {
       "src": "public/hand_l.png",
