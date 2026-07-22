@@ -4,7 +4,7 @@
   "description": "VTuber風パーツパペットエンジンの実装リポジトリ。",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test"
   },
   "repository": {
     "type": "git",
@@ -15,5 +15,8 @@
   "license": "ISC",
   "dependencies": {
     "jimp": "^1.6.1"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1"
   }
 }
