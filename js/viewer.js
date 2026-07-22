@@ -84,13 +84,17 @@
       } else {
         const parentWorld = resolve(part.parent);
         const parentPart = manifest.parts[part.parent];
+        const parentState = state[part.parent];
         const anchorLocal = parentPart.anchors && parentPart.anchors[part.parentAnchor];
         const [ax, ay] = anchorLocal || [0, 0];
-        // 親のローカルアンカー点を、親のワールド回転を適用して変換
+        // 親のローカルアンカー点を、親自身の描画スケール→親のワールド回転の順で変換。
+        // draw()でのctx.rotate(angle)→ctx.scale(sx,sy)の適用順(スケールは
+        // パーツ自身のローカル空間、回転はその外側)と一致させないと、呼吸等で
+        // 親パーツの絵だけが伸縮してアンカー位置が追従せず継ぎ目が開く(B1)。
         const cos = Math.cos(parentWorld.angle);
         const sin = Math.sin(parentWorld.angle);
-        const relX = ax - parentPart.pivot[0];
-        const relY = ay - parentPart.pivot[1];
+        const relX = (ax - parentPart.pivot[0]) * parentState.scaleX;
+        const relY = (ay - parentPart.pivot[1]) * parentState.scaleY;
         parentX = parentWorld.x + relX * cos - relY * sin;
         parentY = parentWorld.y + relX * sin + relY * cos;
         parentAngle = parentWorld.angle;

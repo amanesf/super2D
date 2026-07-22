@@ -43,7 +43,7 @@
 
 ## Stage B — ビューア機能拡張
 
-- [ ] **B1: 呼吸スケールで首の継ぎ目が開くバグ修正(最優先)**
+- [x] **B1: 呼吸スケールで首の継ぎ目が開くバグ修正(最優先)**
   - 触る: `js/viewer.js`の`computeWorldTransforms()`(アンカー変換に
     親のscaleを反映)、必要なら`make_placeholder_parts.js`(胴体上端を
     頭の下に差し込む余白)
