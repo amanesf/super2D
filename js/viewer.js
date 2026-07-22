@@ -960,86 +960,102 @@
     applyViewTransform();
   }
 
+  // 1本指ドラッグの共通処理(ドラッグ量dxを角度回転かパンかに振り分ける)。
+  // タッチ・マウス両方の1本指ドラッグから呼ぶ。
+  function applyDragDelta(dx) {
+    // 「body_poseがあるか」ではなく「今選ばれているアクションに角度
+    // バリエーションがあるか」で判定する必要がある。既定の"rig"(通常の
+    // パーツ合成表示)は角度非対応なので、選び直すまではパン扱いになる
+    // (これを取り違えると既定状態でドラッグしても何も起きなくなる)。
+    const family =
+      bodyPoseFamilies && currentBodyPoseFamilyKey ? bodyPoseFamilies.get(currentBodyPoseFamilyKey) : null;
+    if (family && family.angleMap) {
+      desiredAngleDeg = (desiredAngleDeg + dx / ANGLE_DRAG_PX_PER_DEG + 360) % 360;
+      applyBodyPoseState();
+    } else {
+      viewPanX += dx;
+      applyViewTransform();
+    }
+  }
+
+  function clampZoom(z) {
+    return Math.min(VIEW_MAX_ZOOM, Math.max(VIEW_MIN_ZOOM, z));
+  }
+
+  // Pointer Eventsは環境によって(特にマルチタッチのピンチ判定で)発火が
+  // 安定しないことが実機検証で分かったため、タッチはTouchEvent、
+  // マウスはMouseEvent/WheelEventと分けて実装する(こちらは長年実績のある
+  // 標準的な組み合わせ)。
   function setupViewportControls() {
-    const activePointers = new Map();
-    let pinchStartDist = null;
-    let pinchStartZoom = 1;
-    let dragLastX = null;
+    canvas.style.touchAction = "none"; // ブラウザ標準のスクロール/ピンチと競合しないように
 
-    function dist(a, b) {
-      return Math.hypot(a.x - b.x, a.y - b.y);
+    function touchDist(t0, t1) {
+      return Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
     }
 
-    // ブラウザ標準のスクロール/ピンチジェスチャーと競合しないようにする
-    canvas.style.touchAction = "none";
+    let touchPinchStartDist = null;
+    let touchPinchStartZoom = 1;
+    let touchDragLastX = null;
 
-    canvas.addEventListener("pointerdown", (e) => {
-      // 実ポインタが伴わない合成イベント(テスト等)や一部環境では
-      // setPointerCaptureが例外を投げることがある。キャプチャは要素外に
-      // 出た時も追跡を続けるための最適化に過ぎず失敗しても機能上は
-      // 問題ないため、ここで握りつぶして後続のジェスチャー処理を止めない。
-      try {
-        canvas.setPointerCapture(e.pointerId);
-      } catch (err) {
-        // 無視(上記コメント参照)
-      }
-      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (activePointers.size === 2) {
-        const pts = [...activePointers.values()];
-        pinchStartDist = dist(pts[0], pts[1]);
-        pinchStartZoom = viewZoom;
-        dragLastX = null;
-      } else if (activePointers.size === 1) {
-        dragLastX = e.clientX;
-      }
-    });
-
-    canvas.addEventListener("pointermove", (e) => {
-      if (!activePointers.has(e.pointerId)) return;
-      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-      if (activePointers.size >= 2) {
-        const pts = [...activePointers.values()];
-        const d = dist(pts[0], pts[1]);
-        if (pinchStartDist) {
-          viewZoom = Math.min(VIEW_MAX_ZOOM, Math.max(VIEW_MIN_ZOOM, pinchStartZoom * (d / pinchStartDist)));
-          applyViewTransform();
+    canvas.addEventListener(
+      "touchstart",
+      (e) => {
+        if (e.touches.length === 2) {
+          touchPinchStartDist = touchDist(e.touches[0], e.touches[1]);
+          touchPinchStartZoom = viewZoom;
+          touchDragLastX = null;
+        } else if (e.touches.length === 1) {
+          touchDragLastX = e.touches[0].clientX;
         }
-      } else if (activePointers.size === 1 && dragLastX !== null) {
-        const dx = e.clientX - dragLastX;
-        if (bodyPoseFamilies && bodyPoseFamilies.size > 0) {
-          // body_poseがあるキャラはドラッグ=角度回転(ターンテーブル)に使う
-          desiredAngleDeg = (desiredAngleDeg + dx / ANGLE_DRAG_PX_PER_DEG + 360) % 360;
-          applyBodyPoseState();
-        } else {
-          // body_poseの無いキャラ(または未対応)ではドラッグ=パンにする
-          viewPanX += dx;
-          applyViewTransform();
-        }
-        dragLastX = e.clientX;
-      }
-    });
+      },
+      { passive: true }
+    );
 
-    function endPointer(e) {
-      activePointers.delete(e.pointerId);
-      if (activePointers.size < 2) pinchStartDist = null;
-      if (activePointers.size === 1) {
-        const [p] = activePointers.values();
-        dragLastX = p.x;
-      } else {
-        dragLastX = null;
-      }
+    canvas.addEventListener(
+      "touchmove",
+      (e) => {
+        if (e.touches.length >= 2) {
+          if (touchPinchStartDist) {
+            const d = touchDist(e.touches[0], e.touches[1]);
+            viewZoom = clampZoom(touchPinchStartZoom * (d / touchPinchStartDist));
+            applyViewTransform();
+          }
+        } else if (e.touches.length === 1 && touchDragLastX !== null) {
+          const x = e.touches[0].clientX;
+          applyDragDelta(x - touchDragLastX);
+          touchDragLastX = x;
+        }
+        e.preventDefault(); // ページのスクロール/ズームへのフォールバックを防ぐ
+      },
+      { passive: false }
+    );
+
+    function touchEnd(e) {
+      if (e.touches.length < 2) touchPinchStartDist = null;
+      touchDragLastX = e.touches.length === 1 ? e.touches[0].clientX : null;
     }
-    canvas.addEventListener("pointerup", endPointer);
-    canvas.addEventListener("pointercancel", endPointer);
-    canvas.addEventListener("pointerleave", endPointer);
+    canvas.addEventListener("touchend", touchEnd, { passive: true });
+    canvas.addEventListener("touchcancel", touchEnd, { passive: true });
 
-    // デスクトップでの動作確認用(タッチが無い環境でもズームを試せるように)
+    // マウス操作(デスクトップでの動作確認用)。ドラッグはmousedown/up
+    // が要素外で終わることもあるためwindowで拾う。
+    let mouseDragLastX = null;
+    canvas.addEventListener("mousedown", (e) => {
+      mouseDragLastX = e.clientX;
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (mouseDragLastX === null) return;
+      applyDragDelta(e.clientX - mouseDragLastX);
+      mouseDragLastX = e.clientX;
+    });
+    window.addEventListener("mouseup", () => {
+      mouseDragLastX = null;
+    });
     canvas.addEventListener(
       "wheel",
       (e) => {
         e.preventDefault();
-        viewZoom = Math.min(VIEW_MAX_ZOOM, Math.max(VIEW_MIN_ZOOM, viewZoom * (e.deltaY < 0 ? 1.1 : 0.9)));
+        viewZoom = clampZoom(viewZoom * (e.deltaY < 0 ? 1.1 : 0.9));
         applyViewTransform();
       },
       { passive: false }
