@@ -156,7 +156,7 @@
     混入チェック。PLAN.md「支払う前にプロンプトを詰める」の慣習)
   - 受け入れ: 全パーツ分の具体化がテンプレート+パーツ表から機械的に
     生成できる/机上レビューの結果(指摘と修正)をPLAN.mdに記録
-- [ ] **D0b: ブラウザ版入力正規化`js/normalize.js`(`S2D.normalizeImage`)**
+- [x] **D0b: ブラウザ版入力正規化`js/normalize.js`(`S2D.normalizeImage`)**
   - 触る: `js/normalize.js`(新規)。`scripts/normalize_reference.js`
     (Node)と同じ規則(四隅から背景色検出→バウンディングボックス→
     高さ896pxに等比→1024×1024中央配置)をCanvas APIで実装
