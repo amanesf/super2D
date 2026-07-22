@@ -7,11 +7,11 @@
   "use strict";
 
   const STEPS = [
-    { id: "input", title: "1. 画像投入・APIキー設定", promptFile: null },
-    { id: "master", title: "2. マスター生成", promptFile: null },
-    { id: "detect", title: "3. パーツ検出", promptFile: "prompts/part_detection_v1.txt" },
-    { id: "parts", title: "4. パーツ別in-situ生成", promptFile: "prompts/part_insitu_v1.txt" },
-    { id: "qc", title: "5. モーション/継ぎ目QC", promptFile: null },
+    { id: "input", title: "1. 画像投入・APIキー設定", promptFile: null, generation: false },
+    { id: "master", title: "2. マスター生成", promptFile: null, generation: false },
+    { id: "detect", title: "3. パーツ検出", promptFile: "prompts/part_detection_v1.txt", generation: true },
+    { id: "parts", title: "4. パーツ別in-situ生成", promptFile: "prompts/part_insitu_v1.txt", generation: true },
+    { id: "qc", title: "5. モーション/継ぎ目QC", promptFile: null, generation: false },
   ];
 
   const SESSION_KEY = "studio_session";

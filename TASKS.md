@@ -171,7 +171,7 @@
     `js/idb.js`(ghostitdから移植可)
   - 受け入れ: タブがステップ定義から描画される/ダミー画像を投入→
     リロード→「前回の続きから」で復元される
-- [ ] **D2: Gemini API層`js/gemini_api.js`(移植)+手動フォールバック**
+- [x] **D2: Gemini API層`js/gemini_api.js`(移植)+手動フォールバック**
   - ghostitd `js/scanner_api.js`を土台に移植(キーlocalStorage管理・
     `callGemini`・画像/テキスト抽出・429判別)。呼び出しカウンタ+
     セッション上限(超過で停止)を追加。各生成ステップに「APIで生成/

@@ -25,6 +25,18 @@
   .thumb{max-width:160px;max-height:160px;display:block;margin-top:10px;border-radius:6px;border:1px solid var(--line)}
   button.primary{margin-top:12px;padding:8px 16px;border-radius:6px;border:1px solid var(--pink);
     background:rgba(255,47,176,.12);color:var(--txt);font-size:13px;cursor:pointer}
+  .apiKeyRow{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+  .apiKeyRow label{display:block;font-size:12px;color:var(--mut);margin-bottom:6px}
+  .apiKeyRow input[type=password],.apiKeyRow input[type=text]{width:100%;max-width:340px;padding:7px 9px;
+    border-radius:6px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--txt);font-size:13px}
+  .genPaths{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+  .genPath{border:1px solid var(--line);border-radius:8px;padding:12px}
+  .genPath h3{font-size:12.5px;margin:0 0 8px;color:var(--mut);font-weight:600}
+  .promptBox{white-space:pre-wrap;font-size:11.5px;color:#c7ccd3;background:rgba(0,0,0,.3);
+    border-radius:6px;padding:8px;max-height:120px;overflow:auto;margin-bottom:8px}
+  button.secondary{padding:7px 12px;border-radius:6px;border:1px solid var(--line);
+    background:rgba(255,255,255,.03);color:var(--txt);font-size:12.5px;cursor:pointer;margin-right:8px}
+  .errMsg{color:#ff6b6b;font-size:12px;white-space:pre-wrap;margin-top:8px}
 </style></head>
 <body>
 <div class="page">
@@ -36,6 +48,7 @@
 
 <script src="js/idb.js"></script>
 <script src="js/studio_pipeline.js"></script>
+<script src="js/gemini_api.js"></script>
 <script>
 (function(){
   "use strict";
@@ -66,9 +79,11 @@
       panel.id = "step-" + step.id;
       if (step.id === "input") {
         panel.appendChild(buildInputPanel());
+      } else if (step.generation) {
+        panel.appendChild(buildGenerationPanel(step));
       } else {
         const p = document.createElement("p");
-        p.textContent = "(このステップの実処理は後続タスクで実装する。D1時点ではタブ骨格のみ)";
+        p.textContent = "(このステップの実処理は後続タスクで実装する)";
         panel.appendChild(p);
       }
       panelsEl.appendChild(panel);
@@ -111,7 +126,127 @@
       reader.readAsDataURL(file);
     });
 
+    const keyRow = document.createElement("div");
+    keyRow.className = "apiKeyRow";
+    const label = document.createElement("label");
+    label.textContent = "Gemini APIキー(任意。未設定でも手動フォールバック経路で進められます)";
+    label.htmlFor = "gemini-api-key-input";
+    keyRow.appendChild(label);
+    const keyInput = document.createElement("input");
+    keyInput.type = "password";
+    keyInput.id = "gemini-api-key-input";
+    keyInput.value = window.S2D.geminiApi.getApiKey();
+    keyInput.addEventListener("change", () => {
+      window.S2D.geminiApi.setApiKey(keyInput.value.trim());
+    });
+    keyRow.appendChild(keyInput);
+    wrap.appendChild(keyRow);
+
     return wrap;
+  }
+
+  // D2: 生成系ステップ共通のUI。「APIで生成」「プロンプトをコピー」
+  // 「画像をアップロード」の3経路を用意し、いずれの経路でも同じ
+  // stepData構造(outputImage)に合流させる(PLAN.md「3経路→同じ後続処理」)。
+  function buildGenerationPanel(step) {
+    const wrap = document.createElement("div");
+    const stepData = session.stepData[step.id] || {};
+
+    const promptBox = document.createElement("div");
+    promptBox.className = "promptBox";
+    promptBox.textContent = "(プロンプト読み込み中...)";
+    wrap.appendChild(promptBox);
+    if (step.promptFile) {
+      fetch(step.promptFile)
+        .then((r) => r.text())
+        .then((t) => { promptBox.textContent = t; })
+        .catch((e) => { promptBox.textContent = `プロンプト読み込み失敗: ${e.message}`; });
+    }
+
+    const paths = document.createElement("div");
+    paths.className = "genPaths";
+
+    // 経路A: APIで生成
+    const pathApi = document.createElement("div");
+    pathApi.className = "genPath";
+    pathApi.innerHTML = "<h3>経路A: APIで生成</h3>";
+    const apiBtn = document.createElement("button");
+    apiBtn.className = "secondary";
+    apiBtn.textContent = "APIで生成";
+    apiBtn.id = `gen-api-btn-${step.id}`;
+    const apiErr = document.createElement("div");
+    apiErr.className = "errMsg";
+    apiErr.id = `gen-api-err-${step.id}`;
+    apiBtn.addEventListener("click", async () => {
+      apiErr.textContent = "";
+      try {
+        const result = await window.S2D.geminiApi.callGemini({ prompt: promptBox.textContent });
+        const img = result.images[0];
+        if (!img) throw new Error("Geminiのレスポンスに画像が含まれていませんでした");
+        applyStepOutput(step, `data:${img.mimeType};base64,${img.base64}`, "api");
+      } catch (e) {
+        apiErr.textContent = e.message;
+      }
+    });
+    pathApi.appendChild(apiBtn);
+    pathApi.appendChild(apiErr);
+    paths.appendChild(pathApi);
+
+    // 経路B: プロンプトをコピー(手動でGeminiに貼り付けてもらう)
+    const pathCopy = document.createElement("div");
+    pathCopy.className = "genPath";
+    pathCopy.innerHTML = "<h3>経路B: プロンプトをコピーして手動生成</h3>";
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "secondary";
+    copyBtn.textContent = "プロンプトをコピー";
+    copyBtn.id = `gen-copy-btn-${step.id}`;
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(promptBox.textContent);
+        copyBtn.textContent = "コピーしました";
+        setTimeout(() => { copyBtn.textContent = "プロンプトをコピー"; }, 1500);
+      } catch (e) {
+        copyBtn.textContent = `コピー失敗: ${e.message}`;
+      }
+    });
+    pathCopy.appendChild(copyBtn);
+    paths.appendChild(pathCopy);
+
+    // 経路C: 画像を手動アップロード(APIキー無しで完結する経路)
+    const pathUpload = document.createElement("div");
+    pathUpload.className = "genPath";
+    pathUpload.innerHTML = "<h3>経路C: 生成済み画像をアップロード</h3>";
+    const uploadInput = document.createElement("input");
+    uploadInput.type = "file";
+    uploadInput.accept = "image/*";
+    uploadInput.id = `gen-upload-input-${step.id}`;
+    uploadInput.addEventListener("change", () => {
+      const file = uploadInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => applyStepOutput(step, reader.result, "manual-upload");
+      reader.readAsDataURL(file);
+    });
+    pathUpload.appendChild(uploadInput);
+    paths.appendChild(pathUpload);
+
+    wrap.appendChild(paths);
+
+    if (stepData.outputImage) {
+      const thumb = document.createElement("img");
+      thumb.className = "thumb";
+      thumb.id = `gen-output-thumb-${step.id}`;
+      thumb.src = stepData.outputImage;
+      wrap.appendChild(thumb);
+    }
+
+    return wrap;
+  }
+
+  function applyStepOutput(step, dataUrl, source) {
+    session.stepData[step.id] = { outputImage: dataUrl, source };
+    P.markStepComplete(session, step.id, session.stepData[step.id]);
+    saveAndRender();
   }
 
   function saveAndRender() {
