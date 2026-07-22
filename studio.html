@@ -47,6 +47,15 @@
   .candCard .editClosed{font-size:11px;color:var(--mut);font-style:italic}
   .previewBox{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
   .previewBox img{max-width:220px;display:block;margin-top:8px;border-radius:8px;border:1px solid var(--line)}
+  .qcLayout{display:flex;flex-wrap:wrap;gap:20px}
+  .qcControls{flex:1 1 260px}
+  .qcControls label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+  .qcControls select,.qcControls input[type=range]{width:100%}
+  #qc-viewer-frame{width:300px;height:380px;border:1px solid var(--line);border-radius:8px}
+  #qc-zoom-canvas{border:1px solid var(--line);border-radius:8px;background:#000}
+  .qcStatus{margin-top:10px;padding:8px 10px;border-radius:6px;font-size:12.5px}
+  .qcStatus.ok{background:rgba(57,255,158,.1);color:var(--green)}
+  .qcStatus.gap{background:rgba(255,47,176,.12);color:#ff6b9e}
 </style></head>
 <body>
 <div class="page">
@@ -61,6 +70,7 @@
 <script src="js/gemini_api.js"></script>
 <script src="js/gallery.js"></script>
 <script src="js/generation_log.js"></script>
+<script src="js/seam_qc.js"></script>
 <script>
 (function(){
   "use strict";
@@ -87,12 +97,22 @@
     panelsEl.innerHTML = "";
     P.STEPS.forEach((step) => {
       const panel = document.createElement("div");
-      panel.className = "panel" + (step.id === session.currentStepId ? " active" : "");
+      const isActive = step.id === session.currentStepId;
+      panel.className = "panel" + (isActive ? " active" : "");
       panel.id = "step-" + step.id;
-      if (step.id === "input") {
+      // qcタブだけはiframe(viewer.html)を埋め込むため、非アクティブな
+      // 状態でも毎回並行構築すると前回のiframeのloadイベントが後から
+      // 発火し、現在アクティブなタブの状態を古い参照で上書きしてしまう。
+      // 他のタブは(iframeを持たないため)これまで通り常に構築し、非表示
+      // でも状態(サムネイル等)を保持する。
+      if (step.id === "qc" && !isActive) {
+        // 何もしない(タブ切替時に改めて構築される)
+      } else if (step.id === "input") {
         panel.appendChild(buildInputPanel());
       } else if (step.id === "parts") {
         panel.appendChild(buildGalleryPanel(step));
+      } else if (step.id === "qc") {
+        panel.appendChild(buildQcPanel(step));
       } else if (step.generation) {
         panel.appendChild(buildGenerationPanel(step));
       } else {
@@ -404,6 +424,177 @@
     }
 
     return card;
+  }
+
+  // D7: 継ぎ目QC画面。viewer.htmlを同一オリジンのiframeで埋め込み、
+  // window.S2D.viewerDebug(js/viewer.js)経由で関節角度を直接スクラブ/
+  // 自動往復させ、接続部をズーム表示する。js/seam_qc.jsで隙間(透過)の
+  // 有無を数値でも判定する(目視だけに頼らない)。
+  let qcSweepHandle = null;
+  let qcRafHandle = null;
+
+  function buildQcPanel(step) {
+    // タブを離れて戻ってきた際、前回のパネルが回していたループ/
+    // ストレステストのタイマーを止めてから作り直す(取り残されたコール
+    // バックが削除済みDOMを触り続けるのを防ぐ)。
+    if (qcSweepHandle) { clearInterval(qcSweepHandle); qcSweepHandle = null; }
+    if (qcRafHandle) { cancelAnimationFrame(qcRafHandle); qcRafHandle = null; }
+
+    const wrap = document.createElement("div");
+    const layout = document.createElement("div");
+    layout.className = "qcLayout";
+
+    const frame = document.createElement("iframe");
+    frame.id = "qc-viewer-frame";
+    frame.src = "viewer.html";
+    layout.appendChild(frame);
+
+    const controls = document.createElement("div");
+    controls.className = "qcControls";
+
+    const partLabel = document.createElement("label");
+    partLabel.textContent = "検査対象パーツ";
+    controls.appendChild(partLabel);
+    const partSelect = document.createElement("select");
+    partSelect.id = "qc-part-select";
+    controls.appendChild(partSelect);
+
+    const angleLabel = document.createElement("label");
+    angleLabel.textContent = "関節角度(度)";
+    controls.appendChild(angleLabel);
+    const angleSlider = document.createElement("input");
+    angleSlider.type = "range";
+    angleSlider.id = "qc-angle-slider";
+    angleSlider.min = "-90";
+    angleSlider.max = "90";
+    angleSlider.value = "0";
+    controls.appendChild(angleSlider);
+
+    const sweepBtn = document.createElement("button");
+    sweepBtn.className = "secondary";
+    sweepBtn.id = "qc-sweep-btn";
+    sweepBtn.textContent = "自動往復ストレステスト開始";
+    controls.appendChild(document.createElement("br"));
+    controls.appendChild(sweepBtn);
+
+    const zoomCanvas = document.createElement("canvas");
+    zoomCanvas.id = "qc-zoom-canvas";
+    zoomCanvas.width = 220;
+    zoomCanvas.height = 220;
+    controls.appendChild(document.createElement("br"));
+    controls.appendChild(zoomCanvas);
+
+    const statusEl = document.createElement("div");
+    statusEl.className = "qcStatus ok";
+    statusEl.id = "qc-gap-status";
+    statusEl.textContent = "(パーツ選択後、判定を表示します)";
+    controls.appendChild(statusEl);
+
+    layout.appendChild(controls);
+    wrap.appendChild(layout);
+
+    let debugApi = null;
+    // 静止姿勢(角度0)でのズーム範囲を基準として保持し、以後は「そこから
+    // 新たに透過になった画素があるか」で判定する(パーツ選択が変わるたびに
+    // 取り直す)。関節の外側はそもそも背景で透過なので、単純な透過閾値
+    // だけでは「継ぎ目の穴」と区別できないため。
+    let baselineImageData = null;
+
+    function updateZoomAndStatus() {
+      if (!debugApi) return;
+      const partName = partSelect.value;
+      const pivot = debugApi.getWorldPivot(partName);
+      const srcCanvas = debugApi.getCanvas();
+      if (!pivot || !srcCanvas) return;
+      const ctx = zoomCanvas.getContext("2d");
+      const cropRadius = 60;
+      ctx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(
+        srcCanvas,
+        pivot.x - cropRadius, pivot.y - cropRadius, cropRadius * 2, cropRadius * 2,
+        0, 0, zoomCanvas.width, zoomCanvas.height
+      );
+      const imageData = ctx.getImageData(0, 0, zoomCanvas.width, zoomCanvas.height);
+
+      if (!baselineImageData) {
+        baselineImageData = imageData;
+        statusEl.className = "qcStatus ok";
+        statusEl.textContent = "(静止姿勢を基準として記録しました)";
+        return;
+      }
+
+      // 数px程度のアンチエイリアシング由来の差はメッシュ変形では常に
+      // 起こりうる(境界の丸め)。B1のような「継ぎ目が開く」不具合は
+      // これよりずっと大きい面積で穴が出るため、小さな許容値を設けて
+      // ノイズと実際の不具合を区別する。
+      const NOISE_TOLERANCE_PX = 20;
+      const result = window.S2D.seamQc.detectSeamRegression(
+        baselineImageData, imageData, zoomCanvas.width / 2, zoomCanvas.height / 2, 40
+      );
+      const hasSignificantGap = result.newGapPixelCount > NOISE_TOLERANCE_PX;
+      statusEl.className = "qcStatus " + (hasSignificantGap ? "gap" : "ok");
+      statusEl.textContent = hasSignificantGap
+        ? `継ぎ目に隙間を検出(静止姿勢では不透明だった画素が${result.newGapPixelCount}個透過になった)`
+        : `継ぎ目OK(静止姿勢に対する透過画素の増加は${result.newGapPixelCount}個、許容範囲内)`;
+    }
+
+    function loop() {
+      updateZoomAndStatus();
+      qcRafHandle = requestAnimationFrame(loop);
+    }
+
+    angleSlider.addEventListener("input", () => {
+      if (!debugApi) return;
+      const rad = (Number(angleSlider.value) * Math.PI) / 180;
+      debugApi.setAngleOverride(partSelect.value, rad);
+    });
+
+    partSelect.addEventListener("change", () => {
+      if (!debugApi) return;
+      debugApi.clearAllOverrides();
+      angleSlider.value = "0";
+      debugApi.setAngleOverride(partSelect.value, 0);
+      baselineImageData = null; // 選択パーツが変わったら基準を取り直す
+    });
+
+    sweepBtn.addEventListener("click", () => {
+      if (qcSweepHandle) {
+        clearInterval(qcSweepHandle);
+        qcSweepHandle = null;
+        sweepBtn.textContent = "自動往復ストレステスト開始";
+        return;
+      }
+      sweepBtn.textContent = "自動往復ストレステスト停止";
+      const start = performance.now();
+      qcSweepHandle = setInterval(() => {
+        const tSec = (performance.now() - start) / 1000;
+        const deg = Math.sin(tSec * 1.5) * 90;
+        angleSlider.value = String(Math.round(deg));
+        if (debugApi) debugApi.setAngleOverride(partSelect.value, (deg * Math.PI) / 180);
+      }, 30);
+    });
+
+    frame.addEventListener("load", () => {
+      const waitForReady = setInterval(() => {
+        const win = frame.contentWindow;
+        if (win && win.S2D && win.S2D.viewerDebug && win.S2D.viewerDebug.getPartNames().length > 0) {
+          clearInterval(waitForReady);
+          debugApi = win.S2D.viewerDebug;
+          partSelect.innerHTML = "";
+          for (const name of debugApi.getPartNames()) {
+            const opt = document.createElement("option");
+            opt.value = name;
+            opt.textContent = name;
+            partSelect.appendChild(opt);
+          }
+          window.__qcReady = true;
+          loop();
+        }
+      }, 50);
+    });
+
+    return wrap;
   }
 
   function onGalleryChanged(step) {

@@ -591,6 +591,10 @@
         angle += Math.sin(t * (isw.freqHz ?? 1) + (isw.phase ?? 0)) * (isw.ampRad ?? 0);
       }
 
+      // D7継ぎ目QC画面用のデバッグ上書き。通常動作時はundefinedのまま
+      // 触れないため既存の動きに影響しない。
+      if (s.angleOverride != null) angle = s.angleOverride;
+
       s.angle = angle;
       angleOf[name] = angle;
       return angle;
@@ -952,4 +956,31 @@
     statusEl.textContent = "エラー: " + err.message;
     console.error(err);
   });
+
+  // D7継ぎ目QC画面(studio.html)がiframe越しに使うデバッグ用API。
+  // 通常の閲覧では一切使われない(呼ばれない限り既存動作に影響しない)。
+  window.S2D = window.S2D || {};
+  window.S2D.viewerDebug = {
+    setAngleOverride(partName, angleRad) {
+      if (state[partName]) state[partName].angleOverride = angleRad;
+    },
+    clearAngleOverride(partName) {
+      if (state[partName]) delete state[partName].angleOverride;
+    },
+    clearAllOverrides() {
+      for (const s of Object.values(state)) delete s.angleOverride;
+    },
+    getCanvas() {
+      return canvas;
+    },
+    // 指定パーツのpivotのワールド座標(キャンバスピクセル空間)を返す。
+    // 継ぎ目ズームのクロップ中心に使う。
+    getWorldPivot(partName) {
+      const world = computeWorldTransforms();
+      return world[partName] ? { x: world[partName].x, y: world[partName].y } : null;
+    },
+    getPartNames() {
+      return manifest ? Object.keys(manifest.parts || {}) : [];
+    },
+  };
 })();
