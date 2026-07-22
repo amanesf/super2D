@@ -20,7 +20,7 @@ const ROOT = path.join(__dirname, "..");
 // 値を更新する場合: このテストのassertを一時的に外してconsole.log(hash)で
 // 実測し、差し替える(意図した見た目の変更であることをスクリーンショット
 // 等で確認したうえで行うこと)。
-const GOLDEN_HASH = "48c5148e4f8a739de6aaacc0691cc3c17fcecad8a6bb2abb81ae50a688e7eeaa";
+const GOLDEN_HASH = "7ac3d615bb09d79529d166ddf1ffc75dbf2e300a84837cddc5de53e30a345c9c";
 
 async function freezeAtRest(page) {
   await page.addInitScript(() => {

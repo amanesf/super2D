@@ -156,7 +156,11 @@
         "followRatio": 0.4,
         "freqHz": 0.4,
         "phase": -0.9,
-        "ampRad": 0.09
+        "ampRad": 0.09,
+        "hairLag": {
+          "blendMarginPx": 100,
+          "lagRate": 5
+        }
       }
     },
     "hair_front": {
@@ -175,7 +179,11 @@
         "followRatio": 0.6,
         "freqHz": 0.6,
         "phase": -0.4,
-        "ampRad": 0.05
+        "ampRad": 0.05,
+        "hairLag": {
+          "blendMarginPx": 25,
+          "lagRate": 7
+        }
       }
     },
     "hair_side_l": {
@@ -194,7 +202,11 @@
         "followRatio": 0.5,
         "freqHz": 0.55,
         "phase": -0.6,
-        "ampRad": 0.06
+        "ampRad": 0.06,
+        "hairLag": {
+          "blendMarginPx": 50,
+          "lagRate": 6
+        }
       }
     },
     "hair_side_r": {
@@ -211,9 +223,13 @@
       "drawOrderHint": 35,
       "motionParams": {
         "followRatio": 0.5,
-        "freqHz": 0.55,
-        "phase": -0.6,
-        "ampRad": 0.06
+        "freqHz": 0.48,
+        "phase": -0.2,
+        "ampRad": 0.06,
+        "hairLag": {
+          "blendMarginPx": 50,
+          "lagRate": 6.8
+        }
       }
     },
     "eye_l": {

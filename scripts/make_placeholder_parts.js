@@ -188,7 +188,10 @@ async function build() {
       motion: "procedural-mesh-sway",
       symmetry: "asymmetric",
       drawOrderHint: 5,
-      motionParams: { followRatio: 0.4, freqHz: 0.4, phase: -0.9, ampRad: 0.09 },
+      motionParams: {
+        followRatio: 0.4, freqHz: 0.4, phase: -0.9, ampRad: 0.09,
+        hairLag: { blendMarginPx: 100, lagRate: 5 },
+      },
     };
   }
 
@@ -204,11 +207,16 @@ async function build() {
       pivot: [55, 45],
       motion: "procedural-mesh-sway",
       drawOrderHint: 40,
-      motionParams: { followRatio: 0.6, freqHz: 0.6, phase: -0.4, ampRad: 0.05 },
+      motionParams: {
+        followRatio: 0.6, freqHz: 0.6, phase: -0.4, ampRad: 0.05,
+        hairLag: { blendMarginPx: 25, lagRate: 7 },
+      },
     };
   }
 
   // --- hair_side_l / hair_side_r ---------------------------------------
+  // 左右で周波数・位相・遅延率をわずかにずらし、同期して動かないように
+  // する(C4「左右が同期しない」の受け入れ条件)。
   for (const side of ["l", "r"]) {
     const w = 34, h = 140;
     const im = newCanvas(w, h);
@@ -220,7 +228,13 @@ async function build() {
       pivot: [17, 12],
       motion: "procedural-mesh-sway",
       drawOrderHint: 35,
-      motionParams: { followRatio: 0.5, freqHz: 0.55, phase: -0.6, ampRad: 0.06 },
+      motionParams: {
+        followRatio: 0.5,
+        freqHz: side === "l" ? 0.55 : 0.48,
+        phase: side === "l" ? -0.6 : -0.2,
+        ampRad: 0.06,
+        hairLag: { blendMarginPx: 50, lagRate: side === "l" ? 6 : 6.8 },
+      },
     };
   }
 

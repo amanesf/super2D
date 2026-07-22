@@ -67,6 +67,17 @@
 はするが、待機中は僅かに揺れてほしい」パーツに使う(現行の
 `arm_upper_r`/`arm_upper_l`/`arm_lower_r`/`arm_lower_l`)
 
+**`hairLag`(任意、どの`motion`にも追加できる房内変形、C4)**:
+`{ blendMarginPx, lagRate }`。指定すると、そのパーツは`pivot`付近(根元)が
+現在の角度にそのまま追従し、`pivot`から`blendMarginPx`以上離れた部分
+(毛先)は`lagRate`(1/秒、大きいほど遅れが小さい)の1次遅れフィルタで
+遅延した角度に向かう(`js/viewer.js`の`updateHairLag()`)。`procedural-mesh-bend`
+と同じ`buildBendMesh()`/`drawBendMesh()`を再利用しているが、
+`angleBase`(pivot付近)/`angleFull`(遠方)の意味が逆になる点に注意
+(関節メッシュは遠方が「自身の角度」、髪の房は遠方が「遅延角度」)。
+左右対称のパーツ(`hair_side_l`/`hair_side_r`)は`freqHz`・`phase`・
+`lagRate`をわずかにずらし、左右が同期しないようにする
+
 ### `motion: "discrete-crossfade"`(状態切替のクロスフェード、C3)
 
 `states`を持つパーツ(目・口など)の`currentState`が切り替わった瞬間、

@@ -207,7 +207,10 @@
 
     for (let r = 0; r <= rows; r++) {
       const y = (part.h * r) / rows;
-      const distFromPivot = y - part.pivot[1];
+      // 絶対値を使うのは、パーツによってpivotがローカル座標の端寄りに
+      // 置かれる場合がある(前髪等)ため。joint-bend用途ではpivotの下側に
+      // しか本体が無い(dist常に正)ので符号の有無で挙動は変わらない。
+      const distFromPivot = Math.abs(y - part.pivot[1]);
       const weight = blendMarginPx > 0 ? smoothstep(distFromPivot / blendMarginPx) : 1;
       for (let c = 0; c <= cols; c++) {
         const x = (part.w * c) / cols;
@@ -347,6 +350,7 @@
         scaleX: 1,
         scaleY: 1,
         currentState: part.defaultState || null,
+        lagAngle: 0, // motionParams.hairLagを持つパーツのみ使う(C4)
       };
       if (part.motion === "discrete-crossfade") {
         newCrossfade[name] = { fromSrc: null, toSrc: null, startT: 0 };
@@ -360,13 +364,25 @@
       newTextures[src] = createTextureFromImage(newImages[src]);
     }
 
-    // procedural-mesh-bendパーツ(C2.5)は頂点メッシュを持つ。
-    // blendMarginPxが無指定なら重み常に1(=従来の剛体回転と同じ見た目)。
+    // 頂点メッシュ(角度をpivot付近〜遠方でブレンドして描く)が必要な
+    // パーツを構築する。用途は2種類あり、draw()での角度の与え方が違うため
+    // mesh.kindで区別する:
+    // - "joint-bend"(procedural-mesh-bend、C2.5): pivot付近が親の角度、
+    //   遠方が自身の角度(親との継ぎ目を無くす)
+    // - "hair-lag"(motionParams.hairLag、C4): pivot付近(根元)が現在の
+    //   角度、遠方(毛先)が遅延角度(根元→毛先へ動きが伝播して見える)
+    // blendMarginPx無指定なら重み常に1(=角度ブレンドせず従来の剛体回転)。
     const newBendMeshes = {};
     for (const [name, part] of Object.entries(manifestData.parts)) {
-      if (part.motion !== "procedural-mesh-bend") continue;
-      const blendMarginPx = (part.motionParams && part.motionParams.blendMarginPx) || 0;
-      newBendMeshes[name] = buildBendMesh(part, blendMarginPx);
+      if (part.motion === "procedural-mesh-bend") {
+        const blendMarginPx = (part.motionParams && part.motionParams.blendMarginPx) || 0;
+        newBendMeshes[name] = buildBendMesh(part, blendMarginPx);
+        newBendMeshes[name].kind = "joint-bend";
+      } else if (part.motionParams && part.motionParams.hairLag) {
+        const blendMarginPx = part.motionParams.hairLag.blendMarginPx || 0;
+        newBendMeshes[name] = buildBendMesh(part, blendMarginPx);
+        newBendMeshes[name].kind = "hair-lag";
+      }
     }
 
     return { newImages, newTextures, newBendMeshes, newCrossfade, newState };
@@ -488,10 +504,18 @@
         const src = partCurrentSrc(name, part);
         const texture = src && textures[src];
         if (!texture) continue;
-        // C2.5: 親のワールド角度(自身のs.angleを含まない)〜完全な角度の間を
-        // 頂点ごとの重みでブレンドし、親パーツとの継ぎ目を無くす。
-        const angleBase = part.parent ? world[part.parent].angle : 0;
-        drawBendMesh(mesh, texture, [w.x, w.y], angleBase, w.angle, [s.scaleX, s.scaleY]);
+        let angleBase, angleFull;
+        if (mesh.kind === "hair-lag") {
+          // C4: 根元(pivot付近)は現在の角度、毛先(遠方)は遅延角度。
+          angleBase = w.angle;
+          angleFull = s.lagAngle;
+        } else {
+          // C2.5: 親のワールド角度(自身のs.angleを含まない)〜完全な角度の
+          // 間を頂点ごとの重みでブレンドし、親パーツとの継ぎ目を無くす。
+          angleBase = part.parent ? world[part.parent].angle : 0;
+          angleFull = w.angle;
+        }
+        drawBendMesh(mesh, texture, [w.x, w.y], angleBase, angleFull, [s.scaleX, s.scaleY]);
         continue;
       }
 
@@ -575,10 +599,25 @@
     for (const name of Object.keys(manifest.parts)) resolve(name);
   }
 
+  // 髪の房内変形(C4)。根元(pivot付近)は現在の角度にそのまま追従し、
+  // 毛先はlagRateで指数的に遅れて追従する(1次遅れフィルタ、Verlet等の
+  // 本格的な物理を簡略化したシア+ベンド近似)。これをbendMeshで根元〜
+  // 毛先の間に描くことで、房の中で根元→毛先へ動きが伝播して見える。
+  function updateHairLag(dt) {
+    for (const [name, part] of Object.entries(manifest.parts)) {
+      const cfg = part.motionParams && part.motionParams.hairLag;
+      if (!cfg) continue;
+      const s = state[name];
+      const rate = cfg.lagRate ?? 8; // 1/秒、大きいほど遅れが小さい(速く追従)
+      s.lagAngle += (s.angle - s.lagAngle) * Math.min(rate * dt, 1);
+    }
+  }
+
   function updateIdle(dt) {
     t += dt;
 
     resolveIdleAngles();
+    updateHairLag(dt);
 
     // まばたき(ランダム間隔、たまに素早く2回)
     if (!blinking && t >= nextBlinkAt) {
