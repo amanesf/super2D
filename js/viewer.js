@@ -470,14 +470,45 @@
     };
   }
 
-  function updateWave(dt, waving) {
-    if (!waving) {
-      state.arm_upper_r.angle += (Math.sin(t * 1.1 + 1.0) * 0.02 - state.arm_upper_r.angle) * 0;
-      return;
+  // ---- レイヤー合成(idleベース+アクションオーバーレイ、C2) --------------
+  // アクション開始・終了時に角度を即座に上書きすると同フレームで値が
+  // 飛び(スナップし)腕が瞬間移動して見える。updateIdle()が設定した
+  // idleの角度を「ベース」、手振りの角度を「オーバーレイ」とみなし、
+  // 0.3秒のsmoothstepイージングでブレンド率を遷移させることでスナップを
+  // 無くす。ブレンド中に目標が反転しても(素早くボタンを連打する等)、
+  // その時点の値から新しい目標へ改めて0.3秒かけて遷移する。
+  function easeSmoothstep(x) {
+    const clamped = Math.max(0, Math.min(1, x));
+    return clamped * clamped * (3 - 2 * clamped);
+  }
+
+  function updateBlendWeight(blend, target, tNow, duration) {
+    if (target !== blend.target) {
+      blend.target = target;
+      blend.fromValue = blend.value;
+      blend.startT = tNow;
     }
+    const elapsed = tNow - blend.startT;
+    const raw = duration > 0 ? elapsed / duration : 1;
+    blend.value = blend.fromValue + (blend.target - blend.fromValue) * easeSmoothstep(raw);
+    return blend.value;
+  }
+
+  const WAVE_BLEND_DURATION = 0.3;
+  const waveBlend = { value: 0, target: 0, fromValue: 0, startT: 0 };
+
+  function updateWave(dt, waving) {
+    const weight = updateBlendWeight(waveBlend, waving ? 1 : 0, t, WAVE_BLEND_DURATION);
+    if (weight <= 0) return; // 完全にidleのみなので、idleの角度に触れない
+
     // 肩を上げ、肘を曲げて手を振る(2剛体パーツで肘の曲げ点デモ)
-    state.arm_upper_r.angle = -1.9 + Math.sin(t * 6) * 0.05;
-    state.arm_lower_r.angle = -0.6 + Math.sin(t * 6 + 0.5) * 0.35;
+    const waveUpperAngle = -1.9 + Math.sin(t * 6) * 0.05;
+    const waveLowerAngle = -0.6 + Math.sin(t * 6 + 0.5) * 0.35;
+
+    // state.arm_*.angleは既にupdateIdle()でidleの値になっている。
+    // それを起点にweight分だけ手振りへブレンドする。
+    state.arm_upper_r.angle += (waveUpperAngle - state.arm_upper_r.angle) * weight;
+    state.arm_lower_r.angle += (waveLowerAngle - state.arm_lower_r.angle) * weight;
   }
 
   let wasTalking = false;
