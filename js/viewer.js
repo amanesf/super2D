@@ -228,6 +228,16 @@
     const res = await fetch(`${characterDir}character.json`);
     if (!res.ok) throw new Error(`character.jsonの読み込みに失敗(${res.status}): ${characterDir}character.json`);
     manifest = await res.json();
+
+    const { errors, warnings } = window.S2D.validateCharacter(manifest);
+    if (warnings.length > 0) console.warn("character.json警告:\n" + warnings.join("\n"));
+    if (errors.length > 0) {
+      statusEl.style.color = "#f87171";
+      statusEl.textContent = "character.jsonが不正です:\n" + errors.join("\n");
+      console.error("character.jsonエラー:\n" + errors.join("\n"));
+      return;
+    }
+
     await preloadAll();
     statusEl.textContent = `読み込み完了(パーツ${Object.keys(manifest.parts).length}個、プレースホルダー画像)`;
 

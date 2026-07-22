@@ -12,7 +12,7 @@
 
 ## Stage A — キャラクターバンドル形式
 
-- [ ] **A1: `characters/`への移設とcharacter.json化**
+- [x] **A1: `characters/`への移設とcharacter.json化**
   - 触る: `assets/*` → `characters/placeholder-zero/`へ移設(git mv)、
     `scripts/make_placeholder_parts.js`(出力先変更)、`viewer.html`/
     `js/viewer.js`(読込パスを`?character=<id>`クエリで切替、既定
@@ -22,7 +22,7 @@
   - 受け入れ: `viewer.html?character=placeholder-zero`でキャラが表示され
     アイドルアニメーションが動く(移設前とスクリーンショット比較で同等)
 
-- [ ] **A2: フォーマット仕様書`docs/character-format.md`**
+- [x] **A2: フォーマット仕様書`docs/character-format.md`**
   - 触る: `docs/character-format.md`(新規)
   - 全フィールド(`format`/`formatVersion`/`canvasStandard`/`rootAnchor`/
     `parts`の`parent`/`parentAnchor`/`pivot`/`anchors`/`motion`/`states`/
@@ -32,7 +32,7 @@
   - 受け入れ: 仕様書だけを見て`characters/placeholder-zero/character.json`
     の全フィールドの意味が分かる(実ファイルと突き合わせて過不足ゼロ)
 
-- [ ] **A3: バリデータ`js/validate.js`(`S2D.validateCharacter`)**
+- [x] **A3: バリデータ`js/validate.js`(`S2D.validateCharacter`)**
   - 触る: `js/validate.js`(新規)、`js/viewer.js`(読込時に実行、
     エラーは`#status`に表示)
   - 検査: 必須フィールド/`parent`が存在するパーツ名か/`parentAnchor`が
