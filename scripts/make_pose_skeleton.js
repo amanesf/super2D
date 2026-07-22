@@ -1,22 +1,28 @@
 #!/usr/bin/env node
 /**
- * 「この骨格・関節位置に合わせて描け」と指定するための棒人間テンプレート
- * を生成する。座標は自分たちで決め打ちするので、検出は不要になる
- * (マスター生成後にこの座標がそのままpivots_normalizedの実値になる)。
+ * パーツ分解生成時に添付する「関節ガイド」画像を作る。
  *
- * 使い方: node scripts/make_pose_skeleton.js <out.png>
+ * 役割の切り分け(2026-07-21確定):
+ * - マスター生成: 棒人間は使わない/使っても「高さ・中心を示すだけ」の
+ *   緩い役割(自由なポーズを妨げない)。
+ * - パーツ分解生成(#2・#3): このスクリプトの出番。マスターに対して
+ *   joint_detection_master_v1.txt で実測した関節座標(点)+関節を結ぶ
+ *   骨(線、角度を伝える)+邪魔にならない位置のラベル文字、を描いた
+ *   ガイド画像を作り、パーツ生成時に元画像・テンプレ画像と並べて添付
+ *   する。当てずっぽうの座標ではなく実測値を使うのが前提。
+ *
+ * 使い方:
+ *   node scripts/make_pose_skeleton.js <out.png> [joints.json]
+ *   joints.json省略時はフォールバック仮値を使う(未検証、暫定確認用)。
  */
+const fs = require("fs");
 const { Jimp, rgbaToInt } = require("jimp");
 
 const CANVAS_W = 1024;
 const CANVAS_H = 1024;
 
-// 標準ポーズ(正面直立・肩幅程度に脚を開く・腕は体から離して自然に
-// 下げる)の関節位置。normalize_reference.jsの基準(キャラクター高さ
-// 896px、y方向オフセット64px、つまり正規化y=0.0625〜0.9375)に合わせた
-// 見積もり。マスター生成後に実際の絵とズレていたら座標を調整する前提の
-// 初版。
-const JOINTS_NORMALIZED = {
+// フォールバック用の仮値(正規化座標)。実測JSONが無い場合のみ使う。
+const FALLBACK_JOINTS_NORMALIZED = {
   head_top: [0.50, 0.065],
   neck: [0.50, 0.16],
   shoulder_r: [0.62, 0.19],
@@ -33,7 +39,7 @@ const JOINTS_NORMALIZED = {
   ankle_l: [0.47, 0.90],
 };
 
-// 骨(線)の接続定義。どの関節とどの関節を結ぶか。
+// 骨(線)の接続定義。どの関節とどの関節を結ぶか(角度を伝えるため)。
 const BONES = [
   ["head_top", "neck"],
   ["neck", "shoulder_r"], ["neck", "shoulder_l"],
@@ -48,11 +54,6 @@ const LINE_COLOR = rgbaToInt(40, 120, 255, 255);
 const JOINT_COLOR = rgbaToInt(255, 0, 60, 255);
 const JOINT_RADIUS = 9;
 const LINE_WIDTH = 4;
-
-function toPixel(name) {
-  const [nx, ny] = JOINTS_NORMALIZED[name];
-  return [Math.round(nx * CANVAS_W), Math.round(ny * CANVAS_H)];
-}
 
 function drawFilledCircle(image, cx, cy, radius, colorInt) {
   for (let y = -radius; y <= radius; y++) {
@@ -78,36 +79,64 @@ function drawThickLine(image, x0, y0, x1, y1, width, colorInt) {
   }
 }
 
-async function makeSkeleton(outPath) {
+// ラベル文字は小さいビットマップフォントが無いため、簡易的に短い矩形
+// タグとして位置だけ示す(将来jimpのprintを使う場合はここを差し替え)。
+async function annotateLabel(image, font, text, x, y) {
+  if (font) {
+    image.print({ font, x: x + 12, y: y - 6, text });
+  }
+}
+
+async function makeGuide(outPath, jointsJsonPath) {
   const image = new Jimp({ width: CANVAS_W, height: CANVAS_H, color: 0xffffffff });
 
+  let pixelCoords = {};
+  let source;
+  if (jointsJsonPath) {
+    const raw = JSON.parse(fs.readFileSync(jointsJsonPath, "utf8"));
+    // joint_detection_master_v1.txt の出力はそのままピクセル座標なので直接使う
+    pixelCoords = raw;
+    source = `実測値(${jointsJsonPath})`;
+  } else {
+    for (const [name, [nx, ny]] of Object.entries(FALLBACK_JOINTS_NORMALIZED)) {
+      pixelCoords[name] = [Math.round(nx * CANVAS_W), Math.round(ny * CANVAS_H)];
+    }
+    source = "フォールバック仮値(未検証、暫定確認用のみ)";
+  }
+
   for (const [a, b] of BONES) {
-    const [x0, y0] = toPixel(a);
-    const [x1, y1] = toPixel(b);
+    if (!pixelCoords[a] || !pixelCoords[b]) continue;
+    const [x0, y0] = pixelCoords[a];
+    const [x1, y1] = pixelCoords[b];
     drawThickLine(image, x0, y0, x1, y1, LINE_WIDTH, LINE_COLOR);
   }
-  const placed = {};
-  for (const name of Object.keys(JOINTS_NORMALIZED)) {
-    const [x, y] = toPixel(name);
+
+  let font = null;
+  try {
+    font = await Jimp.loadFont(Jimp.FONT_SANS_10_BLACK || undefined);
+  } catch (e) {
+    // フォントが無い環境ではラベルなしで続行(点と骨だけでも十分機能する)
+  }
+
+  for (const [name, [x, y]] of Object.entries(pixelCoords)) {
     drawFilledCircle(image, x, y, JOINT_RADIUS, JOINT_COLOR);
-    placed[name] = [x, y];
+    if (font) await annotateLabel(image, font, name, x, y);
   }
 
   await image.write(outPath);
-  console.log(`saved ${outPath}`);
-  console.log("joint pixel coords:", JSON.stringify(placed, null, 2));
+  console.log(`saved ${outPath} (座標の出どころ: ${source}, ラベル: ${font ? "あり" : "なし(フォント未取得)"})`);
 }
 
 if (require.main === module) {
-  const [, , outPath] = process.argv;
+  const [, , outPath, jointsJsonPath] = process.argv;
   if (!outPath) {
-    console.error("usage: node make_pose_skeleton.js <out.png>");
+    console.error("usage: node make_pose_skeleton.js <out.png> [joints.json]");
     process.exit(1);
   }
-  makeSkeleton(outPath).catch((err) => {
+  makeGuide(outPath, jointsJsonPath).catch((err) => {
     console.error(err);
     process.exit(1);
   });
 }
 
-module.exports = { makeSkeleton, JOINTS_NORMALIZED, BONES };
+module.exports = { makeGuide, FALLBACK_JOINTS_NORMALIZED, BONES };
