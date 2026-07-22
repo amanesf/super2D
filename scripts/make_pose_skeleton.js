@@ -14,6 +14,12 @@
  * 使い方:
  *   node scripts/make_pose_skeleton.js <out.png> [joints.json]
  *   joints.json省略時はフォールバック仮値を使う(未検証、暫定確認用)。
+ *
+ * 【状態 2026-07-22】in-situ生成への転換(PLAN.md「全体レビューによる
+ * 設計改訂」)により、パーツ生成時の関節ガイドという役割は見直し対象。
+ * 使うかどうかはStage Dのプロンプト設計時に判断する(勝手に廃止しない)。
+ * ラベル文字の描画はjimp v1のフォントAPI対応が未完のため未実装
+ * (点と骨線のみ出力する。黙って失敗はしない)。
  */
 const fs = require("fs");
 const { Jimp, rgbaToInt } = require("jimp");
@@ -79,14 +85,6 @@ function drawThickLine(image, x0, y0, x1, y1, width, colorInt) {
   }
 }
 
-// ラベル文字は小さいビットマップフォントが無いため、簡易的に短い矩形
-// タグとして位置だけ示す(将来jimpのprintを使う場合はここを差し替え)。
-async function annotateLabel(image, font, text, x, y) {
-  if (font) {
-    image.print({ font, x: x + 12, y: y - 6, text });
-  }
-}
-
 async function makeGuide(outPath, jointsJsonPath) {
   const image = new Jimp({ width: CANVAS_W, height: CANVAS_H, color: 0xffffffff });
 
@@ -111,20 +109,14 @@ async function makeGuide(outPath, jointsJsonPath) {
     drawThickLine(image, x0, y0, x1, y1, LINE_WIDTH, LINE_COLOR);
   }
 
-  let font = null;
-  try {
-    font = await Jimp.loadFont(Jimp.FONT_SANS_10_BLACK || undefined);
-  } catch (e) {
-    // フォントが無い環境ではラベルなしで続行(点と骨だけでも十分機能する)
-  }
-
-  for (const [name, [x, y]] of Object.entries(pixelCoords)) {
+  // ラベル文字は未実装(jimp v1のフォントAPI対応が未完)。黙って失敗
+  // させず、未実装であることを明示して点と骨線のみ出力する。
+  for (const [x, y] of Object.values(pixelCoords)) {
     drawFilledCircle(image, x, y, JOINT_RADIUS, JOINT_COLOR);
-    if (font) await annotateLabel(image, font, name, x, y);
   }
 
   await image.write(outPath);
-  console.log(`saved ${outPath} (座標の出どころ: ${source}, ラベル: ${font ? "あり" : "なし(フォント未取得)"})`);
+  console.log(`saved ${outPath} (座標の出どころ: ${source}, ラベル: 未実装のためなし)`);
 }
 
 if (require.main === module) {
