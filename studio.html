@@ -37,6 +37,16 @@
   button.secondary{padding:7px 12px;border-radius:6px;border:1px solid var(--line);
     background:rgba(255,255,255,.03);color:var(--txt);font-size:12.5px;cursor:pointer;margin-right:8px}
   .errMsg{color:#ff6b6b;font-size:12px;white-space:pre-wrap;margin-top:8px}
+  .galleryGrid{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px}
+  .candCard{border:1px solid var(--line);border-radius:8px;padding:8px;width:170px}
+  .candCard.adopted{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
+  .candCard img{width:100%;border-radius:6px;display:block;margin-bottom:6px}
+  .candCard .meta{font-size:10.5px;color:var(--mut);margin-bottom:6px}
+  .candCard textarea{width:100%;font-size:11.5px;padding:5px;border-radius:5px;border:1px solid var(--line);
+    background:rgba(255,255,255,.03);color:var(--txt);resize:vertical;min-height:36px;margin-bottom:6px}
+  .candCard .editClosed{font-size:11px;color:var(--mut);font-style:italic}
+  .previewBox{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+  .previewBox img{max-width:220px;display:block;margin-top:8px;border-radius:8px;border:1px solid var(--line)}
 </style></head>
 <body>
 <div class="page">
@@ -49,6 +59,8 @@
 <script src="js/idb.js"></script>
 <script src="js/studio_pipeline.js"></script>
 <script src="js/gemini_api.js"></script>
+<script src="js/gallery.js"></script>
+<script src="js/generation_log.js"></script>
 <script>
 (function(){
   "use strict";
@@ -79,6 +91,8 @@
       panel.id = "step-" + step.id;
       if (step.id === "input") {
         panel.appendChild(buildInputPanel());
+      } else if (step.id === "parts") {
+        panel.appendChild(buildGalleryPanel(step));
       } else if (step.generation) {
         panel.appendChild(buildGenerationPanel(step));
       } else {
@@ -241,6 +255,160 @@
     }
 
     return wrap;
+  }
+
+  // D6: ベストオブNギャラリー+プロンプト微修正(会話継続編集)。
+  // 実際の検出結果に基づく複数パーツへの拡張は後続タスクだが、ギャラリー
+  // 機構(候補管理・採用切替・修正連鎖の歯止め)自体はここで完結させる。
+  const DEMO_PART = "demo_part";
+
+  function getPartsGalleries() {
+    if (!session.stepData.parts) session.stepData.parts = { galleries: {} };
+    if (!session.stepData.parts.galleries[DEMO_PART]) {
+      session.stepData.parts.galleries[DEMO_PART] = window.S2D.gallery.createGallery();
+    }
+    return session.stepData.parts.galleries[DEMO_PART];
+  }
+
+  function buildGalleryPanel(step) {
+    const G = window.S2D.gallery;
+    const gallery = getPartsGalleries();
+    const wrap = document.createElement("div");
+
+    const addRow = document.createElement("div");
+    addRow.className = "genPath";
+    addRow.innerHTML = "<h3>候補を追加(生成済み画像を手動アップロード)</h3>";
+    const addInput = document.createElement("input");
+    addInput.type = "file";
+    addInput.accept = "image/*";
+    addInput.id = "gallery-add-input";
+    addInput.addEventListener("change", () => {
+      const file = addInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        G.addCandidate(gallery, { imageDataUrl: reader.result, source: "manual-upload" });
+        window.S2D.generationLog.append({
+          partName: DEMO_PART,
+          source: "manual-upload",
+          adopted: true,
+        });
+        onGalleryChanged(step);
+      };
+      reader.readAsDataURL(file);
+      addInput.value = "";
+    });
+    addRow.appendChild(addInput);
+    wrap.appendChild(addRow);
+
+    const grid = document.createElement("div");
+    grid.className = "galleryGrid";
+    gallery.candidates.forEach((cand) => {
+      grid.appendChild(buildCandidateCard(step, gallery, cand));
+    });
+    wrap.appendChild(grid);
+
+    const previewBox = document.createElement("div");
+    previewBox.className = "previewBox";
+    previewBox.innerHTML = "<h3>合成プレビュー(採用中の候補)</h3>";
+    const adopted = G.getAdopted(gallery);
+    if (adopted) {
+      const previewImg = document.createElement("img");
+      previewImg.id = "gallery-preview-img";
+      previewImg.src = adopted.imageDataUrl;
+      previewBox.appendChild(previewImg);
+    } else {
+      const none = document.createElement("p");
+      none.textContent = "(まだ候補がありません)";
+      previewBox.appendChild(none);
+    }
+    wrap.appendChild(previewBox);
+
+    return wrap;
+  }
+
+  function buildCandidateCard(step, gallery, cand) {
+    const G = window.S2D.gallery;
+    const card = document.createElement("div");
+    card.className = "candCard" + (gallery.adoptedId === cand.id ? " adopted" : "");
+    card.id = `gallery-card-${cand.id}`;
+
+    const img = document.createElement("img");
+    img.src = cand.imageDataUrl;
+    card.appendChild(img);
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = `source: ${cand.source} / chain: ${cand.chainDepth}`;
+    card.appendChild(meta);
+
+    const adoptBtn = document.createElement("button");
+    adoptBtn.className = "secondary";
+    adoptBtn.id = `gallery-adopt-btn-${cand.id}`;
+    adoptBtn.textContent = gallery.adoptedId === cand.id ? "採用中" : "採用にする";
+    adoptBtn.addEventListener("click", () => {
+      G.adoptCandidate(gallery, cand.id);
+      onGalleryChanged(step);
+    });
+    card.appendChild(adoptBtn);
+
+    if (G.canAddEdit(gallery, cand.id)) {
+      const textarea = document.createElement("textarea");
+      textarea.placeholder = "この画像への修正指示(例: 髪の色をもっと明るく)";
+      textarea.id = `gallery-edit-text-${cand.id}`;
+      card.appendChild(textarea);
+
+      const editUploadLabel = document.createElement("div");
+      editUploadLabel.style.fontSize = "10.5px";
+      editUploadLabel.style.color = "var(--mut)";
+      editUploadLabel.textContent = "修正版画像(手動アップロード。APIの会話継続はgemini_api.jsのhistory機構で後日配線)";
+      card.appendChild(editUploadLabel);
+
+      const editUpload = document.createElement("input");
+      editUpload.type = "file";
+      editUpload.accept = "image/*";
+      editUpload.id = `gallery-edit-upload-${cand.id}`;
+      editUpload.addEventListener("change", () => {
+        const file = editUpload.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const editInstruction = textarea.value;
+          try {
+            G.addEditedCandidate(gallery, cand.id, {
+              imageDataUrl: reader.result,
+              source: "manual-upload",
+              editInstruction,
+            });
+            window.S2D.generationLog.append({
+              partName: DEMO_PART,
+              source: "manual-upload",
+              editInstruction,
+              parentId: cand.id,
+              adopted: true,
+            });
+            onGalleryChanged(step);
+          } catch (e) {
+            alert(e.message);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+      card.appendChild(editUpload);
+    } else {
+      const closed = document.createElement("div");
+      closed.className = "editClosed";
+      closed.id = `gallery-edit-closed-${cand.id}`;
+      closed.textContent = `修正の連鎖は${G.MAX_EDIT_CHAIN}回までのため、この候補への修正指示欄は閉じています`;
+      card.appendChild(closed);
+    }
+
+    return card;
+  }
+
+  function onGalleryChanged(step) {
+    P.markStepDataOnly(session, step.id, session.stepData[step.id]);
+    saveAndRender();
   }
 
   function applyStepOutput(step, dataUrl, source) {

@@ -35,15 +35,32 @@
   }
 
   function markStepComplete(session, stepId, data) {
+    const wasAlreadyComplete = session.completedStepIds.includes(stepId);
+    if (!wasAlreadyComplete) {
+      session.completedStepIds.push(stepId);
+    }
+    if (data !== undefined) {
+      session.stepData[stepId] = data;
+    }
+    // 初回完了時だけ次のタブへ自動遷移する。既に完了済みのステップへの
+    // 追加更新(ギャラリーへの候補追加等)では現在のタブを維持する。
+    if (!wasAlreadyComplete) {
+      const idx = STEPS.findIndex((s) => s.id === stepId);
+      const next = STEPS[idx + 1];
+      if (next) session.currentStepId = next.id;
+    }
+    return session;
+  }
+
+  // markStepCompleteと違い、タブを自動遷移させずにデータだけ保存する。
+  // ギャラリー(D6)のように同じタブ内で何度も更新が起きるステップに使う。
+  function markStepDataOnly(session, stepId, data) {
     if (!session.completedStepIds.includes(stepId)) {
       session.completedStepIds.push(stepId);
     }
     if (data !== undefined) {
       session.stepData[stepId] = data;
     }
-    const idx = STEPS.findIndex((s) => s.id === stepId);
-    const next = STEPS[idx + 1];
-    if (next) session.currentStepId = next.id;
     return session;
   }
 
@@ -54,5 +71,6 @@
     loadSession,
     saveSession,
     markStepComplete,
+    markStepDataOnly,
   };
 })(window);
