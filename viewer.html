@@ -17,7 +17,12 @@
     background: #f4f6f8; border-radius: 12px; overflow: hidden;
     display: flex; justify-content: center;
   }
-  canvas { display: block; }
+  /* スマホの縦画面でキャンバスの縦幅がビューポートを占領し、ボタンが
+     同時に見えなくなる問題への対応。canvas要素のwidth/height属性
+     (WebGLの内部解像度、ゴールデンハッシュテスト等が前提にしている)は
+     変更せず、CSS表示サイズだけをimgのobject-fit:containと同じ要領で
+     ビューポートの高さに収まるよう縮小する。 */
+  canvas { display: block; width: auto; height: auto; max-width: 100%; max-height: 48vh; }
   .controls { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
   button {
     background: #2a2d34; color: #e8edf2; border: 1px solid #3c4049;
@@ -36,6 +41,14 @@
   }
   .parallax-controls label { font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
   .parallax-controls input[type="range"] { width: 100%; }
+  /* 表情/ポーズ切替は種類が多く(30種類超のパーツもある)デフォルトで
+     開いていると縦に長くなりすぎるため折りたたむ。呼吸・手振り等の
+     主要デモ(.controls)はこの外に置き、常に見える状態を保つ。 */
+  details.advanced { margin-top: 12px; }
+  details.advanced > summary {
+    cursor: pointer; font-size: 13px; color: #e8edf2; padding: 8px 0;
+    -webkit-tap-highlight-color: transparent;
+  }
 </style>
 </head>
 <body>
@@ -56,15 +69,18 @@
     <button id="btn-wave">手を振る(肘の曲げデモ)</button>
     <button id="btn-talk">話す(口パクデモ)</button>
   </div>
-  <div class="parallax-controls">
-    <label>頭のyaw(左右の見返り): <span id="yaw-value">0</span>°
-      <input type="range" id="yaw" min="-15" max="15" value="0" step="1" />
-    </label>
-    <label>頭のpitch(上下の見上げ/見下ろし): <span id="pitch-value">0</span>°
-      <input type="range" id="pitch" min="-15" max="15" value="0" step="1" />
-    </label>
-  </div>
-  <div id="state-controls"></div>
+  <details class="advanced">
+    <summary>詳細設定(見返り・表情・ポーズ切替)</summary>
+    <div class="parallax-controls">
+      <label>頭のyaw(左右の見返り): <span id="yaw-value">0</span>°
+        <input type="range" id="yaw" min="-15" max="15" value="0" step="1" />
+      </label>
+      <label>頭のpitch(上下の見上げ/見下ろし): <span id="pitch-value">0</span>°
+        <input type="range" id="pitch" min="-15" max="15" value="0" step="1" />
+      </label>
+    </div>
+    <div id="state-controls"></div>
+  </details>
   <div class="export-row">
     <button id="btn-export">character.jsonを書き出す</button>
   </div>

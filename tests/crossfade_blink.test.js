@@ -64,7 +64,9 @@ test("まばたきのstate切替が瞬間切替せず、途中経過が両端と
     await advance(page, FIXED_DT_MS * 60);
     const openHash = await canvasHash(page);
 
-    await page.click('.state-group:has(.state-group-label:text("eye_l:")) button:text-is("closed")');
+    // 詳細設定(表情/ポーズ切替)は既定で折りたたまれているため開く
+    await page.click("details.advanced summary");
+    await page.click('.state-group[data-part="eye_l"] button[data-state="closed"]');
     await advance(page, FIXED_DT_MS * 4); // 遷移(0.12s)の途中
     const midHash = await canvasHash(page);
 

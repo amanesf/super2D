@@ -684,6 +684,54 @@
     }
   }
 
+  // ---- 状態切替UIの日本語ラベル ----------------------------------------
+  // character.jsonのパーツ名・state名は内部識別子(英語)なのでそのまま
+  // ボタンに出すと読めない。表示用の日本語訳を持つが、character.jsonは
+  // キャラごとに任意の識別子を持ちうるため、訳が無い場合は元の識別子を
+  // そのまま出す(フォールバック、未知語で表示が消えないように)。
+  const PART_LABEL_JA = {
+    head_base: "表情",
+    eye_l: "左目",
+    eye_r: "右目",
+    mouth: "口",
+    hand_r: "右手",
+    hand_l: "左手",
+    body_pose: "ポーズ/アングル",
+  };
+  const STATE_LABEL_JA = {
+    neutral: "通常", happy: "嬉しい", angry: "怒り", sad: "悲しい",
+    relaxed: "安心", surprised: "驚き", embarrassed: "照れ", troubled: "困り",
+    smug: "ドヤ顔", sleepy: "眠い", crying: "泣き", wink: "ウインク",
+    open: "開", closed: "閉",
+    rest: "通常", aa: "あ", ih: "い", ou: "う", ee: "え", oh: "お",
+    fist: "グー", point: "指差し", mic: "マイク", peace: "ピース",
+    heart: "ハート", thumbs_up: "いいね", wave: "手振り",
+    rig: "通常(パーツ合成)", idle: "待機", greet: "挨拶", bow: "お辞儀",
+    nod: "頷き", sit: "座る", think: "考え中", cheer: "応援",
+    clap: "拍手", shrug: "肩すくめ",
+  };
+  // angle_30/walk_mid_90等、末尾が角度の連番系はパターンで訳す(個別
+  // 列挙すると組み合わせ数が多くキリが無いため)。
+  const STATE_LABEL_PATTERNS = [
+    [/^angle_(\d+)$/, (deg) => `${deg}°`],
+    [/^walk_mid_(\d+)$/, (deg) => `歩行${deg}°`],
+    [/^run_mid_(\d+)$/, (deg) => `走行${deg}°`],
+    [/^jump_(\d+)$/, (deg) => `ジャンプ${deg}°`],
+  ];
+
+  function translatePartName(name) {
+    return PART_LABEL_JA[name] || name;
+  }
+
+  function translateStateName(stateName) {
+    if (STATE_LABEL_JA[stateName]) return STATE_LABEL_JA[stateName];
+    for (const [re, fn] of STATE_LABEL_PATTERNS) {
+      const m = stateName.match(re);
+      if (m) return fn(m[1]);
+    }
+    return stateName;
+  }
+
   // ---- 状態切替UI(parts[*].statesから動的生成) ------------------------
   // srcの無いstateは原則ボタン化しない(B3受け入れ条件)が、isRig(B4、
   // 全身スプライトから通常リグ表示へ戻すための特別枠)だけは例外。
@@ -699,14 +747,16 @@
 
       const group = document.createElement("div");
       group.className = "state-group";
+      group.dataset.part = name;
       const label = document.createElement("span");
       label.className = "state-group-label";
-      label.textContent = name + ":";
+      label.textContent = translatePartName(name) + ":";
       group.appendChild(label);
 
       for (const [stateName] of withSrc) {
         const btn = document.createElement("button");
-        btn.textContent = stateName;
+        btn.textContent = translateStateName(stateName);
+        btn.dataset.state = stateName;
         btn.addEventListener("click", () => {
           state[name].currentState = stateName;
         });
