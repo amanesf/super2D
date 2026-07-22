@@ -1,0 +1,443 @@
+{
+  "_comment": "円・四角のプレースホルダーで組んだ試作マニフェスト。実画像に差し替え前提。座標はこのプレースホルダー生成スクリプトが自分で決めた値(検出不要、既知)。",
+  "canvasStandard": [
+    1024,
+    1024
+  ],
+  "rootAnchor": [
+    300,
+    420
+  ],
+  "parts": {
+    "torso": {
+      "src": "assets/placeholder/torso.png",
+      "w": 180,
+      "h": 240,
+      "parent": null,
+      "pivot": [
+        90,
+        232
+      ],
+      "anchors": {
+        "neck": [
+          90,
+          12
+        ],
+        "shoulder_r": [
+          158,
+          35
+        ],
+        "shoulder_l": [
+          22,
+          35
+        ],
+        "hip_r": [
+          118,
+          225
+        ],
+        "hip_l": [
+          62,
+          225
+        ],
+        "cape_root": [
+          90,
+          220
+        ]
+      },
+      "motion": "procedural-breathe",
+      "drawOrderHint": 10
+    },
+    "head_base": {
+      "src": "assets/placeholder/head_base.png",
+      "w": 170,
+      "h": 170,
+      "parent": "torso",
+      "parentAnchor": "neck",
+      "pivot": [
+        85,
+        155
+      ],
+      "anchors": {
+        "hair_front_root": [
+          85,
+          25
+        ],
+        "hair_side_l_root": [
+          20,
+          75
+        ],
+        "hair_side_r_root": [
+          150,
+          75
+        ],
+        "hair_back_root": [
+          40,
+          60
+        ],
+        "eye_l": [
+          58,
+          88
+        ],
+        "eye_r": [
+          112,
+          88
+        ],
+        "mouth": [
+          85,
+          118
+        ]
+      },
+      "motion": "procedural-sway",
+      "drawOrderHint": 30
+    },
+    "hair_back": {
+      "src": "assets/placeholder/hair_back.png",
+      "w": 90,
+      "h": 280,
+      "parent": "head_base",
+      "parentAnchor": "hair_back_root",
+      "pivot": [
+        45,
+        20
+      ],
+      "motion": "procedural-mesh-sway",
+      "symmetry": "asymmetric",
+      "drawOrderHint": 5
+    },
+    "hair_front": {
+      "src": "assets/placeholder/hair_front.png",
+      "w": 110,
+      "h": 55,
+      "parent": "head_base",
+      "parentAnchor": "hair_front_root",
+      "pivot": [
+        55,
+        45
+      ],
+      "motion": "procedural-mesh-sway",
+      "drawOrderHint": 40
+    },
+    "hair_side_l": {
+      "src": "assets/placeholder/hair_side_l.png",
+      "w": 34,
+      "h": 140,
+      "parent": "head_base",
+      "parentAnchor": "hair_side_l_root",
+      "pivot": [
+        17,
+        12
+      ],
+      "motion": "procedural-mesh-sway",
+      "drawOrderHint": 35
+    },
+    "hair_side_r": {
+      "src": "assets/placeholder/hair_side_r.png",
+      "w": 34,
+      "h": 140,
+      "parent": "head_base",
+      "parentAnchor": "hair_side_r_root",
+      "pivot": [
+        17,
+        12
+      ],
+      "motion": "procedural-mesh-sway",
+      "drawOrderHint": 35
+    },
+    "eye_l": {
+      "w": 34,
+      "h": 34,
+      "parent": "head_base",
+      "parentAnchor": "eye_l",
+      "pivot": [
+        17,
+        17
+      ],
+      "motion": "discrete-crossfade",
+      "states": {
+        "open": {
+          "src": "assets/placeholder/eye_l_open.png"
+        },
+        "closed": {
+          "src": "assets/placeholder/eye_l_closed.png"
+        }
+      },
+      "defaultState": "open",
+      "drawOrderHint": 50
+    },
+    "eye_r": {
+      "w": 34,
+      "h": 34,
+      "parent": "head_base",
+      "parentAnchor": "eye_r",
+      "pivot": [
+        17,
+        17
+      ],
+      "motion": "discrete-crossfade",
+      "states": {
+        "open": {
+          "src": "assets/placeholder/eye_r_open.png"
+        },
+        "closed": {
+          "src": "assets/placeholder/eye_r_closed.png"
+        }
+      },
+      "defaultState": "open",
+      "drawOrderHint": 50
+    },
+    "mouth": {
+      "w": 46,
+      "h": 26,
+      "parent": "head_base",
+      "parentAnchor": "mouth",
+      "pivot": [
+        23,
+        13
+      ],
+      "motion": "discrete-crossfade",
+      "states": {
+        "rest": {
+          "src": "assets/placeholder/mouth_closed.png"
+        },
+        "aa": {
+          "src": "assets/placeholder/mouth_open.png"
+        }
+      },
+      "defaultState": "rest",
+      "drawOrderHint": 51
+    },
+    "cape": {
+      "src": "assets/placeholder/cape.png",
+      "w": 160,
+      "h": 220,
+      "parent": "torso",
+      "parentAnchor": "cape_root",
+      "pivot": [
+        80,
+        10
+      ],
+      "motion": "procedural-mesh-sway",
+      "drawOrderHint": 8
+    },
+    "arm_upper_r": {
+      "src": "assets/placeholder/arm_upper_r.png",
+      "w": 54,
+      "h": 140,
+      "parent": "torso",
+      "parentAnchor": "shoulder_r",
+      "pivot": [
+        27,
+        10
+      ],
+      "anchors": {
+        "elbow": [
+          27,
+          130
+        ]
+      },
+      "motion": "discrete-crossfade",
+      "states": {
+        "rest": {},
+        "raised": {},
+        "forward": {},
+        "back": {}
+      },
+      "defaultState": "rest",
+      "drawOrderHint": 20
+    },
+    "arm_lower_r": {
+      "src": "assets/placeholder/arm_lower_r.png",
+      "w": 48,
+      "h": 130,
+      "parent": "arm_upper_r",
+      "parentAnchor": "elbow",
+      "pivot": [
+        24,
+        10
+      ],
+      "anchors": {
+        "wrist": [
+          24,
+          120
+        ]
+      },
+      "motion": "procedural-mesh-bend",
+      "note": "肘のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
+      "drawOrderHint": 21
+    },
+    "hand_r": {
+      "src": "assets/placeholder/hand_r.png",
+      "w": 38,
+      "h": 38,
+      "parent": "arm_lower_r",
+      "parentAnchor": "wrist",
+      "pivot": [
+        19,
+        10
+      ],
+      "motion": "discrete-crossfade",
+      "states": {
+        "open": {},
+        "fist": {},
+        "point": {},
+        "mic": {}
+      },
+      "defaultState": "open",
+      "drawOrderHint": 22
+    },
+    "arm_upper_l": {
+      "src": "assets/placeholder/arm_upper_l.png",
+      "w": 54,
+      "h": 140,
+      "parent": "torso",
+      "parentAnchor": "shoulder_l",
+      "pivot": [
+        27,
+        10
+      ],
+      "anchors": {
+        "elbow": [
+          27,
+          130
+        ]
+      },
+      "motion": "discrete-crossfade",
+      "states": {
+        "rest": {},
+        "raised": {},
+        "forward": {},
+        "back": {}
+      },
+      "defaultState": "rest",
+      "drawOrderHint": 42
+    },
+    "arm_lower_l": {
+      "src": "assets/placeholder/arm_lower_l.png",
+      "w": 48,
+      "h": 130,
+      "parent": "arm_upper_l",
+      "parentAnchor": "elbow",
+      "pivot": [
+        24,
+        10
+      ],
+      "anchors": {
+        "wrist": [
+          24,
+          120
+        ]
+      },
+      "motion": "procedural-mesh-bend",
+      "note": "肘のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
+      "drawOrderHint": 43
+    },
+    "hand_l": {
+      "src": "assets/placeholder/hand_l.png",
+      "w": 38,
+      "h": 38,
+      "parent": "arm_lower_l",
+      "parentAnchor": "wrist",
+      "pivot": [
+        19,
+        10
+      ],
+      "motion": "discrete-crossfade",
+      "states": {
+        "open": {},
+        "fist": {},
+        "point": {},
+        "mic": {}
+      },
+      "defaultState": "open",
+      "drawOrderHint": 44
+    },
+    "leg_upper_r": {
+      "src": "assets/placeholder/leg_upper_r.png",
+      "w": 58,
+      "h": 150,
+      "parent": "torso",
+      "parentAnchor": "hip_r",
+      "pivot": [
+        29,
+        8
+      ],
+      "anchors": {
+        "knee": [
+          29,
+          140
+        ]
+      },
+      "motion": "static-cutout",
+      "drawOrderHint": 12
+    },
+    "leg_lower_r": {
+      "src": "assets/placeholder/leg_lower_r.png",
+      "w": 52,
+      "h": 160,
+      "parent": "leg_upper_r",
+      "parentAnchor": "knee",
+      "pivot": [
+        26,
+        8
+      ],
+      "motion": "procedural-mesh-bend",
+      "note": "膝のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
+      "drawOrderHint": 13
+    },
+    "leg_upper_l": {
+      "src": "assets/placeholder/leg_upper_l.png",
+      "w": 58,
+      "h": 150,
+      "parent": "torso",
+      "parentAnchor": "hip_l",
+      "pivot": [
+        29,
+        8
+      ],
+      "anchors": {
+        "knee": [
+          29,
+          140
+        ]
+      },
+      "motion": "static-cutout",
+      "drawOrderHint": 14
+    },
+    "leg_lower_l": {
+      "src": "assets/placeholder/leg_lower_l.png",
+      "w": 52,
+      "h": 160,
+      "parent": "leg_upper_l",
+      "parentAnchor": "knee",
+      "pivot": [
+        26,
+        8
+      ],
+      "motion": "procedural-mesh-bend",
+      "note": "膝のメッシュ曲げ点デモ(プロトタイプは剛体2分割で簡易表現)",
+      "drawOrderHint": 15
+    }
+  },
+  "drawOrder": [
+    "hair_back",
+    "cape",
+    "torso",
+    "leg_upper_r",
+    "leg_lower_r",
+    "leg_upper_l",
+    "leg_lower_l",
+    "arm_upper_r",
+    "arm_lower_r",
+    "hand_r",
+    "head_base",
+    "hair_side_l",
+    "hair_side_r",
+    "hair_front",
+    "arm_upper_l",
+    "arm_lower_l",
+    "hand_l",
+    "eye_l",
+    "eye_r",
+    "mouth"
+  ]
+}

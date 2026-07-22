@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>super2D 試作ビューア(プレースホルダー)</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #1b1d22; color: #e8edf2;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .page { max-width: 720px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
+  h1 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+  .note { font-size: 12px; color: #9aa3ad; line-height: 1.6; margin: 0 0 12px; }
+  .stage-wrap {
+    background: #f4f6f8; border-radius: 12px; overflow: hidden;
+    display: flex; justify-content: center;
+  }
+  canvas { display: block; }
+  .controls { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    background: #2a2d34; color: #e8edf2; border: 1px solid #3c4049;
+    border-radius: 8px; padding: 10px 14px; font-size: 13px; cursor: pointer;
+  }
+  button:active { background: #3c4049; }
+  #status { font-size: 12px; color: #6ee7b7; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>super2D 試作ビューア(プレースホルダーパーツ)</h1>
+  <p class="note">
+    円・四角の仮パーツで、リグ(親子階層・ピボット)とアニメーション
+    (呼吸・首/髪の揺れ・まばたき・クロスフェード・肘の曲げ)の動作を
+    確認するための試作。実画像(Gemini生成物)への差し替えを前提とする。
+  </p>
+  <div class="stage-wrap">
+    <canvas id="stage" width="600" height="760"></canvas>
+  </div>
+  <div class="controls">
+    <button id="btn-wave">手を振る(肘の曲げデモ)</button>
+    <button id="btn-talk">話す(口パクデモ)</button>
+  </div>
+  <div id="status">読み込み中…</div>
+</div>
+<script src="js/viewer.js"></script>
+</body>
+</html>
