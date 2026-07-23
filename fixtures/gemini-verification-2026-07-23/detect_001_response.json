@@ -1,0 +1,35 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"hair_front\": true,\n  \"hair_side_l\": true,\n  \"hair_side_r\": true,\n  \"hair_back_type\": \"single\",\n  \"hair_loose\": false,\n  \"hair_ahoge\": true,\n  \"cat_ears\": true,\n  \"tail\": false,\n  \"held_item\": true,\n  \"bag\": false,\n  \"flowing_cloth\": [\n    \"skirt_hem\"\n  ],\n  \"misc_accessories\": [\n    \"ヘッドセット\",\n    \"首元の装飾\",\n    \"手袋\",\n    \"ニーソックス\",\n    \"ブーツの装飾\",\n    \"ベルト・腰回りの機械的装飾\"\n  ]\n}",
+            "thoughtSignature": "(省略、長さ72文字の内部トークン)"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1726,
+    "candidatesTokenCount": 175,
+    "totalTokenCount": 1901,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 606
+      },
+      {
+        "modality": "IMAGE",
+        "tokenCount": 1120
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.1-flash-lite-image",
+  "responseId": "h2thaqDFB9be_uMP4q7v4QU"
+}

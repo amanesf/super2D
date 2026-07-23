@@ -1,0 +1,44 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "inlineData": {
+              "mimeType": "image/jpeg",
+              "data": "(省略。実データはpart_*_out1.jpg/pngとして別途保存済み)"
+            },
+            "thoughtSignature": "(省略、長さ1158860文字の内部トークン)"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1449,
+    "candidatesTokenCount": 1447,
+    "totalTokenCount": 2896,
+    "promptTokensDetails": [
+      {
+        "modality": "IMAGE",
+        "tokenCount": 1120
+      },
+      {
+        "modality": "TEXT",
+        "tokenCount": 329
+      }
+    ],
+    "candidatesTokensDetails": [
+      {
+        "modality": "IMAGE",
+        "tokenCount": 1120
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.1-flash-lite-image",
+  "responseId": "umthar7vBKOc_uMPu9_jmAY"
+}

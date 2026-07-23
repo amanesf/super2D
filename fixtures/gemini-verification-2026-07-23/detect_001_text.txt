@@ -1,0 +1,23 @@
+{
+  "hair_front": true,
+  "hair_side_l": true,
+  "hair_side_r": true,
+  "hair_back_type": "single",
+  "hair_loose": false,
+  "hair_ahoge": true,
+  "cat_ears": true,
+  "tail": false,
+  "held_item": true,
+  "bag": false,
+  "flowing_cloth": [
+    "skirt_hem"
+  ],
+  "misc_accessories": [
+    "ヘッドセット",
+    "首元の装飾",
+    "手袋",
+    "ニーソックス",
+    "ブーツの装飾",
+    "ベルト・腰回りの機械的装飾"
+  ]
+}
