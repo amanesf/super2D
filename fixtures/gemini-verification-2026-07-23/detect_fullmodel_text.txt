@@ -1,0 +1,22 @@
+{
+  "hair_front": true,
+  "hair_side_l": true,
+  "hair_side_r": true,
+  "hair_back_type": "single",
+  "hair_loose": false,
+  "hair_ahoge": false,
+  "cat_ears": true,
+  "tail": false,
+  "held_item": true,
+  "bag": false,
+  "flowing_cloth": [
+    "skirt_hem",
+    "puff_sleeves"
+  ],
+  "misc_accessories": [
+    "ヘッドホン",
+    "前髪の髪飾り",
+    "アームカバーの飾り",
+    "腰のメカニカルパーツ"
+  ]
+}

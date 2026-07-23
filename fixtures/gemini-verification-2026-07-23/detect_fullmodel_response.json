@@ -1,0 +1,35 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"hair_front\": true,\n  \"hair_side_l\": true,\n  \"hair_side_r\": true,\n  \"hair_back_type\": \"single\",\n  \"hair_loose\": false,\n  \"hair_ahoge\": false,\n  \"cat_ears\": true,\n  \"tail\": false,\n  \"held_item\": true,\n  \"bag\": false,\n  \"flowing_cloth\": [\n    \"skirt_hem\",\n    \"puff_sleeves\"\n  ],\n  \"misc_accessories\": [\n    \"ヘッドホン\",\n    \"前髪の髪飾り\",\n    \"アームカバーの飾り\",\n    \"腰のメカニカルパーツ\"\n  ]\n}",
+            "thoughtSignature": "(省略、内部トークン)"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 864,
+    "candidatesTokenCount": 169,
+    "totalTokenCount": 1033,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 606
+      },
+      {
+        "modality": "IMAGE",
+        "tokenCount": 258
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.1-flash-image",
+  "responseId": "BI1harW6MrKPjMcPqv3Q2Q4"
+}
