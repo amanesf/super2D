@@ -1,0 +1,546 @@
+{
+  "format": "super2d-character",
+  "formatVersion": 1,
+  "_comment": "実イラスト(2026-07-23検証で使用したユーザー提供master_src.png)からGemini実APIで生成した前面リグの実証デモ。クロマキー(自動選定キー色)+関節検出+QC(期待矩形との位置照合)で組み立てた。表情差分・視線・アクション等は未生成(前面アイドル動作の実証が目的)。",
+  "canvasStandard": [
+    1024,
+    1024
+  ],
+  "rootAnchor": [
+    294,
+    288
+  ],
+  "parts": {
+    "torso": {
+      "w": 135,
+      "h": 219,
+      "parent": null,
+      "pivot": [
+        52,
+        134
+      ],
+      "motion": "procedural-breathe",
+      "drawOrderHint": 10,
+      "anchors": {
+        "neck": [
+          52,
+          4
+        ],
+        "shoulder_r": [
+          87,
+          24
+        ],
+        "shoulder_l": [
+          20,
+          24
+        ],
+        "hip_r": [
+          52,
+          134
+        ],
+        "hip_l": [
+          52,
+          134
+        ]
+      },
+      "motionParams": {
+        "freqHz": 1.1,
+        "ampScaleX": 0.006,
+        "ampScaleY": 0.012
+      },
+      "src": "public/torso.png"
+    },
+    "head_base": {
+      "w": 214,
+      "h": 189,
+      "parent": "torso",
+      "pivot": [
+        107,
+        138
+      ],
+      "motion": "procedural-sway",
+      "drawOrderHint": 30,
+      "parentAnchor": "neck",
+      "anchors": {
+        "hair_front_root": [
+          107,
+          28
+        ],
+        "hair_side_l_root": [
+          25,
+          83
+        ],
+        "hair_side_r_root": [
+          189,
+          83
+        ],
+        "hair_back_root": [
+          50,
+          67
+        ],
+        "eye_l": [
+          73,
+          98
+        ],
+        "eye_r": [
+          141,
+          98
+        ],
+        "mouth": [
+          107,
+          131
+        ]
+      },
+      "motionParams": {
+        "freqHz": 0.6,
+        "ampRad": 0.035
+      },
+      "states": {
+        "neutral": {
+          "src": "public/head_base.png"
+        }
+      },
+      "defaultState": "neutral",
+      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+    },
+    "hair_back": {
+      "w": 228,
+      "h": 355,
+      "parent": "head_base",
+      "pivot": [
+        114,
+        21
+      ],
+      "motion": "procedural-mesh-sway",
+      "drawOrderHint": 5,
+      "parentAnchor": "hair_back_root",
+      "motionParams": {
+        "followRatio": 0.4,
+        "freqHz": 0.4,
+        "phase": -0.9,
+        "ampRad": 0.09,
+        "hairLag": {
+          "blendMarginPx": 100,
+          "lagRate": 5
+        }
+      },
+      "src": "public/hair_back.png"
+    },
+    "hair_front": {
+      "w": 418,
+      "h": 264,
+      "parent": "head_base",
+      "pivot": [
+        209,
+        32
+      ],
+      "motion": "procedural-mesh-sway",
+      "drawOrderHint": 40,
+      "parentAnchor": "hair_front_root",
+      "motionParams": {
+        "followRatio": 0.6,
+        "freqHz": 0.6,
+        "phase": -0.4,
+        "ampRad": 0.05,
+        "hairLag": {
+          "blendMarginPx": 25,
+          "lagRate": 7
+        },
+        "parallax": {
+          "x": 20,
+          "y": 12
+        }
+      },
+      "src": "public/hair_front.png"
+    },
+    "hair_side_l": {
+      "w": 247,
+      "h": 338,
+      "parent": "head_base",
+      "pivot": [
+        124,
+        20
+      ],
+      "motion": "procedural-mesh-sway",
+      "drawOrderHint": 35,
+      "parentAnchor": "hair_side_l_root",
+      "motionParams": {
+        "followRatio": 0.5,
+        "freqHz": 0.55,
+        "phase": -0.6,
+        "ampRad": 0.06,
+        "hairLag": {
+          "blendMarginPx": 50,
+          "lagRate": 6
+        },
+        "parallax": {
+          "x": 25,
+          "y": 12
+        }
+      },
+      "src": "public/hair_side_l.png"
+    },
+    "hair_side_r": {
+      "w": 266,
+      "h": 339,
+      "parent": "head_base",
+      "pivot": [
+        133,
+        20
+      ],
+      "motion": "procedural-mesh-sway",
+      "drawOrderHint": 35,
+      "parentAnchor": "hair_side_r_root",
+      "motionParams": {
+        "followRatio": 0.5,
+        "freqHz": 0.48,
+        "phase": -0.2,
+        "ampRad": 0.06,
+        "hairLag": {
+          "blendMarginPx": 50,
+          "lagRate": 6.8
+        },
+        "parallax": {
+          "x": 25,
+          "y": 12
+        }
+      },
+      "src": "public/hair_side_r.png"
+    },
+    "arm_upper_r": {
+      "w": 124,
+      "h": 164,
+      "parent": "torso",
+      "pivot": [
+        51,
+        51
+      ],
+      "motion": "discrete-crossfade",
+      "drawOrderHint": 20,
+      "parentAnchor": "shoulder_r",
+      "anchors": {
+        "elbow": [
+          73,
+          113
+        ]
+      },
+      "motionParams": {
+        "idleSway": {
+          "freqHz": 1.1,
+          "phase": 1,
+          "ampRad": 0.02
+        }
+      },
+      "states": {
+        "rest": {
+          "src": "public/arm_upper_r.png"
+        },
+        "raised": {},
+        "forward": {},
+        "back": {}
+      },
+      "defaultState": "rest",
+      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+    },
+    "arm_lower_r": {
+      "w": 122,
+      "h": 140,
+      "parent": "arm_upper_r",
+      "pivot": [
+        50,
+        89
+      ],
+      "motion": "procedural-mesh-bend",
+      "drawOrderHint": 21,
+      "parentAnchor": "elbow",
+      "anchors": {
+        "wrist": [
+          71,
+          51
+        ]
+      },
+      "motionParams": {
+        "idleSway": {
+          "freqHz": 1.1,
+          "phase": 1,
+          "ampRad": 0.015
+        },
+        "blendMarginPx": 50
+      },
+      "note": "肘の関節メッシュ変形(C2.5、頂点スキニングでarm_upperとの継ぎ目を無くす)",
+      "src": "public/arm_lower_r.png",
+      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+    },
+    "hand_r": {
+      "w": 125,
+      "h": 125,
+      "parent": "arm_lower_r",
+      "pivot": [
+        63,
+        63
+      ],
+      "motion": "discrete-crossfade",
+      "drawOrderHint": 22,
+      "parentAnchor": "wrist",
+      "states": {
+        "open": {
+          "src": "public/hand_r.png"
+        }
+      },
+      "defaultState": "open",
+      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+    },
+    "arm_upper_l": {
+      "w": 125,
+      "h": 185,
+      "parent": "torso",
+      "pivot": [
+        -54,
+        40
+      ],
+      "motion": "discrete-crossfade",
+      "drawOrderHint": 42,
+      "parentAnchor": "shoulder_l",
+      "anchors": {
+        "elbow": [
+          -76,
+          102
+        ]
+      },
+      "motionParams": {
+        "idleSway": {
+          "freqHz": 1.1,
+          "phase": 1.6,
+          "ampRad": 0.02
+        }
+      },
+      "states": {
+        "rest": {
+          "src": "public/arm_upper_l.png"
+        },
+        "raised": {},
+        "forward": {},
+        "back": {}
+      },
+      "defaultState": "rest"
+    },
+    "arm_lower_l": {
+      "w": 140,
+      "h": 142,
+      "parent": "arm_upper_l",
+      "pivot": [
+        89,
+        51
+      ],
+      "motion": "procedural-mesh-bend",
+      "drawOrderHint": 43,
+      "parentAnchor": "elbow",
+      "anchors": {
+        "wrist": [
+          51,
+          91
+        ]
+      },
+      "motionParams": {
+        "idleSway": {
+          "freqHz": 1.1,
+          "phase": 1.6,
+          "ampRad": 0.015
+        },
+        "blendMarginPx": 50
+      },
+      "note": "肘の関節メッシュ変形(C2.5、頂点スキニングでarm_upperとの継ぎ目を無くす)",
+      "src": "public/arm_lower_l.png",
+      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+    },
+    "leg_upper_r": {
+      "w": 129,
+      "h": 213,
+      "parent": "torso",
+      "pivot": [
+        51,
+        51
+      ],
+      "motion": "static-cutout",
+      "drawOrderHint": 12,
+      "parentAnchor": "hip_r",
+      "anchors": {
+        "knee": [
+          78,
+          162
+        ]
+      },
+      "src": "public/leg_upper_r.png",
+      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+    },
+    "leg_lower_r": {
+      "w": 150,
+      "h": 424,
+      "parent": "leg_upper_r",
+      "pivot": [
+        100,
+        184
+      ],
+      "motion": "procedural-mesh-bend",
+      "drawOrderHint": 13,
+      "parentAnchor": "knee",
+      "motionParams": {
+        "blendMarginPx": 60
+      },
+      "note": "膝の関節メッシュ変形(C2.5、頂点スキニングでleg_upperとの継ぎ目を無くす)",
+      "src": "public/leg_lower_r.png"
+    },
+    "leg_upper_l": {
+      "w": 131,
+      "h": 213,
+      "parent": "torso",
+      "pivot": [
+        80,
+        51
+      ],
+      "motion": "static-cutout",
+      "drawOrderHint": 14,
+      "parentAnchor": "hip_l",
+      "anchors": {
+        "knee": [
+          51,
+          162
+        ]
+      },
+      "src": "public/leg_upper_l.png",
+      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+    },
+    "leg_lower_l": {
+      "w": 142,
+      "h": 269,
+      "parent": "leg_upper_l",
+      "pivot": [
+        80,
+        63
+      ],
+      "motion": "procedural-mesh-bend",
+      "drawOrderHint": 15,
+      "parentAnchor": "knee",
+      "motionParams": {
+        "blendMarginPx": 60
+      },
+      "note": "膝の関節メッシュ変形(C2.5、頂点スキニングでleg_upperとの継ぎ目を無くす)",
+      "src": "public/leg_lower_l.png",
+      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+    },
+    "hand_l": {
+      "w": 125,
+      "h": 125,
+      "parent": "arm_lower_l",
+      "pivot": [
+        63,
+        63
+      ],
+      "motion": "discrete-crossfade",
+      "drawOrderHint": 44,
+      "parentAnchor": "wrist",
+      "states": {
+        "open": {
+          "src": "public/hand_l.png"
+        }
+      },
+      "defaultState": "open",
+      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+    },
+    "eye_l": {
+      "w": 34,
+      "h": 34,
+      "parent": "head_base",
+      "parentAnchor": "eye_l",
+      "pivot": [
+        17,
+        17
+      ],
+      "motion": "discrete-crossfade",
+      "states": {
+        "open": {},
+        "closed": {}
+      },
+      "defaultState": "open",
+      "drawOrderHint": 50
+    },
+    "eye_r": {
+      "w": 34,
+      "h": 34,
+      "parent": "head_base",
+      "parentAnchor": "eye_r",
+      "pivot": [
+        17,
+        17
+      ],
+      "motion": "discrete-crossfade",
+      "states": {
+        "open": {},
+        "closed": {}
+      },
+      "defaultState": "open",
+      "drawOrderHint": 50
+    },
+    "mouth": {
+      "w": 46,
+      "h": 26,
+      "parent": "head_base",
+      "parentAnchor": "mouth",
+      "pivot": [
+        23,
+        13
+      ],
+      "motion": "discrete-crossfade",
+      "states": {
+        "rest": {},
+        "aa": {},
+        "ih": {},
+        "ou": {},
+        "ee": {},
+        "oh": {}
+      },
+      "defaultState": "rest",
+      "drawOrderHint": 51
+    },
+    "body_pose": {
+      "w": 1024,
+      "h": 1024,
+      "parent": null,
+      "pivot": [
+        512,
+        512
+      ],
+      "motion": "sprite-select",
+      "states": {
+        "rig": {
+          "isRig": true
+        }
+      },
+      "defaultState": "rig",
+      "drawOrderHint": 0,
+      "note": "全身スプライト切替用の予約枠(未生成、rig固定)"
+    }
+  },
+  "drawOrder": [
+    "body_pose",
+    "hair_back",
+    "torso",
+    "leg_upper_r",
+    "leg_lower_r",
+    "leg_upper_l",
+    "leg_lower_l",
+    "arm_upper_r",
+    "arm_lower_r",
+    "hand_r",
+    "head_base",
+    "hair_side_l",
+    "hair_side_r",
+    "hair_front",
+    "arm_upper_l",
+    "arm_lower_l",
+    "hand_l",
+    "eye_l",
+    "eye_r",
+    "mouth"
+  ]
+}
