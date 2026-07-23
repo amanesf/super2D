@@ -132,6 +132,75 @@
     return new ImageData(out, w, h);
   }
 
+  // クロマキー色の自動選定。固定色(既定#00FF00)だとキャラクター自身の
+  // 意匠色と衝突してα抜けする問題が実証された(2026-07-23検証所見16)。
+  // マスター画像の内容(背景を除く)から実際に使われている色を集め、
+  // 色相環上の候補の中からそれらと最も離れている色を選ぶ。特定
+  // キャラクターに依存しない汎用ルール(どんな配色のキャラクターにも
+  // 同じ手順で機械的に安全な鍵色を割り当てられる)。
+  const KEY_COLOR_CANDIDATE_COUNT = 24; // 色相環を15°刻みで走査
+  const KEY_COLOR_SAMPLE_STRIDE = 3; // 内容画素の間引き(高速化)
+
+  function hsvToRgb(h, s, v) {
+    const c = v * s;
+    const hp = (h / 60) % 6;
+    const x = c * (1 - Math.abs((hp % 2) - 1));
+    let r1 = 0, g1 = 0, b1 = 0;
+    if (hp >= 0 && hp < 1) [r1, g1, b1] = [c, x, 0];
+    else if (hp < 2) [r1, g1, b1] = [x, c, 0];
+    else if (hp < 3) [r1, g1, b1] = [0, c, x];
+    else if (hp < 4) [r1, g1, b1] = [0, x, c];
+    else if (hp < 5) [r1, g1, b1] = [x, 0, c];
+    else [r1, g1, b1] = [c, 0, x];
+    const m = v - c;
+    return [Math.round((r1 + m) * 255), Math.round((g1 + m) * 255), Math.round((b1 + m) * 255)];
+  }
+
+  function toHex(rgb) {
+    return "#" + rgb.map((c) => c.toString(16).padStart(2, "0")).join("").toUpperCase();
+  }
+
+  // masterCanvasLikeの内容(背景除く)から見て最も遠い色を鍵色として返す。
+  // { rgb: [r,g,b], hex: "#RRGGBB", minDistance } を返す。
+  function selectChromaKeyColor(masterCanvasLike, opts) {
+    opts = opts || {};
+    const internal = global.S2D._normalizeInternal;
+    const data = getImageData(masterCanvasLike);
+    const bg = internal.detectBackgroundColor(data);
+    const bbox = internal.contentBBox(data, bg);
+
+    const samples = [];
+    const stride = opts.sampleStride || KEY_COLOR_SAMPLE_STRIDE;
+    for (let y = bbox.top; y <= bbox.bottom; y += stride) {
+      for (let x = bbox.left; x <= bbox.right; x += stride) {
+        const i = (y * data.width + x) * 4;
+        const diff =
+          Math.abs(data.data[i] - bg.r) + Math.abs(data.data[i + 1] - bg.g) + Math.abs(data.data[i + 2] - bg.b);
+        if (diff > BG_DIFF_THRESHOLD) {
+          samples.push([data.data[i], data.data[i + 1], data.data[i + 2]]);
+        }
+      }
+    }
+
+    const candidateCount = opts.candidateCount || KEY_COLOR_CANDIDATE_COUNT;
+    let best = null;
+    for (let k = 0; k < candidateCount; k++) {
+      const hue = (360 / candidateCount) * k;
+      const rgb = hsvToRgb(hue, 1, 1);
+      let minDist = Infinity;
+      for (const s of samples) {
+        const d = Math.sqrt((rgb[0] - s[0]) ** 2 + (rgb[1] - s[1]) ** 2 + (rgb[2] - s[2]) ** 2);
+        if (d < minDist) minDist = d;
+        if (minDist < (best ? best.minDistance : 0)) break; // 既にベスト以下なら打ち切り
+      }
+      if (samples.length === 0) minDist = 0;
+      if (!best || minDist > best.minDistance) {
+        best = { rgb, hex: toHex(rgb), minDistance: minDist };
+      }
+    }
+    return best;
+  }
+
   global.S2D = global.S2D || {};
-  global.S2D.matting = { recoverDualBackgroundAlpha, computeChromaKeyAlpha };
+  global.S2D.matting = { recoverDualBackgroundAlpha, computeChromaKeyAlpha, selectChromaKeyColor };
 })(window);
