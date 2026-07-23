@@ -134,6 +134,12 @@
     const outputBuffer = new Float32Array(dstRowStride * srcH);
 
     let outputOffset = 0;
+    // actualPosition/currentPositionは出力列をまたいで読み取りカーソルを
+    // 進め続ける必要がある(このdo-while内で毎回0にリセットすると、
+    // どの出力列も常にソースの先頭付近だけを平均することになり、縮小時に
+    // 実質ソース全体を無視して単色に潰れる)。ループの外側で1回だけ初期化する。
+    let actualPosition = 0;
+    let currentPosition = 0;
     do {
       for (let line = 0; line < srcH * 4; ) {
         output[line++] = 0;
@@ -144,8 +150,6 @@
       }
 
       let weight = ratioWeight;
-      let actualPosition = 0;
-      let currentPosition = 0;
 
       do {
         const amountToNext = 1 + actualPosition - currentPosition;
@@ -246,6 +250,10 @@
     const srcSize = dstW * srcH * 4;
 
     let outputOffset = 0;
+    // resizeWidthRGBAと同じ理由でactualPosition/currentPositionはループの
+    // 外側で1回だけ初期化し、出力行をまたいで読み取りカーソルを進め続ける。
+    let actualPosition = 0;
+    let currentPosition = 0;
     do {
       for (let pixelOffset = 0; pixelOffset < rowStride; ) {
         output[pixelOffset++] = 0;
@@ -256,8 +264,6 @@
       }
 
       let weight = ratioWeight;
-      let actualPosition = 0;
-      let currentPosition = 0;
 
       do {
         const amountToNext = 1 + actualPosition - currentPosition;

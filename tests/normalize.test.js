@@ -15,13 +15,24 @@ const { normalize } = require("../scripts/normalize_reference");
 
 const ROOT = path.join(__dirname, "..");
 
-// 背景色付き・非対称な内容物を持つ合成画像を作る(等倍でない拡縮・
-// 中央配置ズレを両方のパスに通すため)。
+// 背景色付きの合成画像を作る。実際のキャラクターイラスト同様、内容物は
+// キャンバス中央付近に適度な余白(端ギリギリにはしない。関節の可動域や
+// 将来のアクション用マージンを圧迫しないよう、実運用に近い程度の
+// 余白を残す)を持たせつつ解像度に対して十分大きく取る。
+// 高さ1150は正規化後の目標896pxより大きい=縮小パス(resizeWidthRGBA/
+// resizeHeightRGBA)を確実に通す値(縮小パスに実バグがあり、拡大パスしか
+// 通らないと見逃すことが判明したため、意図的にこの値を選ぶ)。
 async function makeFixture(fixturePath) {
-  const img = new Jimp({ width: 1400, height: 900, color: 0x228833ff });
-  // 内容物(コンテンツ矩形): 背景と明確に区別できる色で塗る。
-  const content = new Jimp({ width: 500, height: 700, color: 0xffccaaff });
-  img.composite(content, 300, 100);
+  const canvasW = 1000;
+  const canvasH = 1400;
+  const contentW = 650;
+  const contentH = 1150;
+  const left = Math.round((canvasW - contentW) / 2); // 中央寄せ(左右175pxずつの余白)
+  const top = Math.round((canvasH - contentH) / 2); // 中央寄せ(上下125pxずつの余白)
+
+  const img = new Jimp({ width: canvasW, height: canvasH, color: 0x228833ff });
+  const content = new Jimp({ width: contentW, height: contentH, color: 0xffccaaff });
+  img.composite(content, left, top);
   await img.write(fixturePath);
 }
 
