@@ -18,7 +18,9 @@
  * - 背景色(四隅サンプリングで自動検出、既定は白)と異なる領域を
  *   キャラクター本体とみなしバウンディングボックスを検出する
  * - バウンディングボックスの高さがキャンバス高さの87.5%(896px)に
- *   なるよう等比拡大縮小し、水平中央揃え・垂直中央揃えで配置する
+ *   なるよう等比拡大縮小し、水平中央揃え・下端は24px固定余白で配置する
+ *   (足元は地面に接する想定で余白を持たせず、余った縦余白は全て上に
+ *   回す非対称配置。上端側は髪の揺れ・持ち物等の可動余地に使う)
  *
  * 使い方: node scripts/normalize_reference.js <src.png> <dst.png>
  */
@@ -27,6 +29,7 @@ const { Jimp, intToRGBA } = require("jimp");
 const CANVAS_W = 1024;
 const CANVAS_H = 1024;
 const TARGET_CONTENT_H = 896; // キャンバス高さの87.5%
+const BOTTOM_MARGIN_PX = 24; // 足元は地面に接するため上下均等ではなく下余白を小さく固定する
 const BG_SAMPLE_MARGIN = 4;
 const BG_DIFF_THRESHOLD = 18; // 背景色からの差分がこれを超えたら「内容」とみなす
 
@@ -87,7 +90,7 @@ async function normalize(srcPath, dstPath) {
 
   const canvas = new Jimp({ width: CANVAS_W, height: CANVAS_H, color: 0xffffffff });
   const xOff = Math.floor((CANVAS_W - newW) / 2);
-  const yOff = Math.floor((CANVAS_H - newH) / 2);
+  const yOff = CANVAS_H - newH - BOTTOM_MARGIN_PX;
   canvas.composite(content, xOff, yOff);
 
   await canvas.write(dstPath);
