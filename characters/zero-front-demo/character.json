@@ -1,7 +1,7 @@
 {
   "format": "super2d-character",
   "formatVersion": 1,
-  "_comment": "\u5b9f\u30a4\u30e9\u30b9\u30c8(2026-07-23\u691c\u8a3c\u3067\u4f7f\u7528\u3057\u305f\u30e6\u30fc\u30b6\u30fc\u63d0\u4f9bmaster_src.png)\u304b\u3089Gemini\u5b9fAPI\u3067\u751f\u6210\u3057\u305f\u524d\u9762\u30ea\u30b0\u306e\u5b9f\u8a3c\u30c7\u30e2\u3002\u30af\u30ed\u30de\u30ad\u30fc(\u81ea\u52d5\u9078\u5b9a\u30ad\u30fc\u8272)+\u95a2\u7bc0\u691c\u51fa+QC(\u671f\u5f85\u77e9\u5f62\u3068\u306e\u4f4d\u7f6e\u7167\u5408)\u3067\u7d44\u307f\u7acb\u3066\u305f\u3002\u8868\u60c5\u5dee\u5206\u30fb\u8996\u7dda\u30fb\u30a2\u30af\u30b7\u30e7\u30f3\u7b49\u306f\u672a\u751f\u6210(\u524d\u9762\u30a2\u30a4\u30c9\u30eb\u52d5\u4f5c\u306e\u5b9f\u8a3c\u304c\u76ee\u7684)\u3002",
+  "_comment": "実イラスト(2026-07-23検証で使用したユーザー提供master_src.png)からGemini実APIで生成した前面リグの実証デモ。クロマキー(自動選定キー色)+関節検出+QC(期待矩形との位置照合)で組み立てた。表情差分・視線・アクション等は未生成(前面アイドル動作の実証が目的)。",
   "canvasStandard": [
     1024,
     1024
@@ -211,20 +211,20 @@
       "src": "public/hair_side_r.png"
     },
     "arm_upper_r": {
-      "w": 122,
-      "h": 151,
+      "w": 106,
+      "h": 124,
       "parent": "torso",
       "pivot": [
-        58,
-        30
+        23,
+        38
       ],
       "motion": "discrete-crossfade",
       "drawOrderHint": 20,
       "parentAnchor": "shoulder_r",
       "anchors": {
         "elbow": [
-          80,
-          92
+          45,
+          99
         ]
       },
       "motionParams": {
@@ -245,11 +245,11 @@
       "defaultState": "rest"
     },
     "arm_lower_r": {
-      "w": 72,
+      "w": 70,
       "h": 157,
       "parent": "arm_upper_r",
       "pivot": [
-        3,
+        -11,
         98
       ],
       "motion": "procedural-mesh-bend",
@@ -257,7 +257,7 @@
       "parentAnchor": "elbow",
       "anchors": {
         "wrist": [
-          12,
+          10,
           59
         ]
       },
@@ -269,16 +269,16 @@
         },
         "blendMarginPx": 50
       },
-      "note": "\u8098\u306e\u95a2\u7bc0\u30e1\u30c3\u30b7\u30e5\u5909\u5f62(C2.5\u3001\u9802\u70b9\u30b9\u30ad\u30cb\u30f3\u30b0\u3067arm_upper\u3068\u306e\u7d99\u304e\u76ee\u3092\u7121\u304f\u3059)",
+      "note": "肘の関節メッシュ変形(C2.5、頂点スキニングでarm_upperとの継ぎ目を無くす)",
       "src": "public/arm_lower_r.png"
     },
     "hand_r": {
-      "w": 49,
-      "h": 48,
+      "w": 77,
+      "h": 143,
       "parent": "arm_lower_r",
       "pivot": [
-        3,
-        34
+        10,
+        71
       ],
       "motion": "discrete-crossfade",
       "drawOrderHint": 22,
@@ -349,7 +349,7 @@
         },
         "blendMarginPx": 50
       },
-      "note": "\u8098\u306e\u95a2\u7bc0\u30e1\u30c3\u30b7\u30e5\u5909\u5f62(C2.5\u3001\u9802\u70b9\u30b9\u30ad\u30cb\u30f3\u30b0\u3067arm_upper\u3068\u306e\u7d99\u304e\u76ee\u3092\u7121\u304f\u3059)",
+      "note": "肘の関節メッシュ変形(C2.5、頂点スキニングでarm_upperとの継ぎ目を無くす)",
       "src": "public/arm_lower_l.png"
     },
     "leg_upper_r": {
@@ -372,12 +372,12 @@
       "src": "public/leg_upper_r.png"
     },
     "leg_lower_r": {
-      "w": 150,
-      "h": 424,
+      "w": 117,
+      "h": 256,
       "parent": "leg_upper_r",
       "pivot": [
-        100,
-        184
+        71,
+        40
       ],
       "motion": "procedural-mesh-bend",
       "drawOrderHint": 13,
@@ -385,7 +385,7 @@
       "motionParams": {
         "blendMarginPx": 60
       },
-      "note": "\u819d\u306e\u95a2\u7bc0\u30e1\u30c3\u30b7\u30e5\u5909\u5f62(C2.5\u3001\u9802\u70b9\u30b9\u30ad\u30cb\u30f3\u30b0\u3067leg_upper\u3068\u306e\u7d99\u304e\u76ee\u3092\u7121\u304f\u3059)",
+      "note": "膝の関節メッシュ変形(C2.5、頂点スキニングでleg_upperとの継ぎ目を無くす)",
       "src": "public/leg_lower_r.png"
     },
     "leg_upper_l": {
@@ -421,7 +421,7 @@
       "motionParams": {
         "blendMarginPx": 60
       },
-      "note": "\u819d\u306e\u95a2\u7bc0\u30e1\u30c3\u30b7\u30e5\u5909\u5f62(C2.5\u3001\u9802\u70b9\u30b9\u30ad\u30cb\u30f3\u30b0\u3067leg_upper\u3068\u306e\u7d99\u304e\u76ee\u3092\u7121\u304f\u3059)",
+      "note": "膝の関節メッシュ変形(C2.5、頂点スキニングでleg_upperとの継ぎ目を無くす)",
       "src": "public/leg_lower_l.png"
     },
     "hand_l": {
@@ -532,7 +532,7 @@
       },
       "defaultState": "rig",
       "drawOrderHint": 0,
-      "note": "\u5168\u8eab\u30b9\u30d7\u30e9\u30a4\u30c8\u5207\u66ff\u7528\u306e\u4e88\u7d04\u67a0(\u672a\u751f\u6210\u3001rig\u56fa\u5b9a)"
+      "note": "全身スプライト切替用の予約枠(未生成、rig固定)"
     }
   },
   "drawOrder": [
