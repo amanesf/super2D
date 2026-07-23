@@ -41,6 +41,10 @@
         "hip_l": [
           52,
           134
+        ],
+        "cape_root": [
+          52,
+          134
         ]
       },
       "motionParams": {
@@ -51,44 +55,44 @@
       "src": "public/torso.png"
     },
     "head_base": {
-      "w": 214,
-      "h": 189,
+      "w": 99,
+      "h": 120,
       "parent": "torso",
       "pivot": [
-        107,
-        138
+        55,
+        113
       ],
       "motion": "procedural-sway",
       "drawOrderHint": 30,
       "parentAnchor": "neck",
       "anchors": {
         "hair_front_root": [
-          107,
-          28
+          50,
+          18
         ],
         "hair_side_l_root": [
-          25,
-          83
+          12,
+          53
         ],
         "hair_side_r_root": [
-          189,
-          83
+          87,
+          53
         ],
         "hair_back_root": [
-          50,
-          67
+          23,
+          42
         ],
         "eye_l": [
-          73,
-          98
+          34,
+          62
         ],
         "eye_r": [
-          141,
-          98
+          65,
+          62
         ],
         "mouth": [
-          107,
-          131
+          50,
+          83
         ]
       },
       "motionParams": {
@@ -100,16 +104,15 @@
           "src": "public/head_base.png"
         }
       },
-      "defaultState": "neutral",
-      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+      "defaultState": "neutral"
     },
     "hair_back": {
-      "w": 228,
-      "h": 355,
+      "w": 230,
+      "h": 284,
       "parent": "head_base",
       "pivot": [
-        114,
-        21
+        151,
+        51
       ],
       "motion": "procedural-mesh-sway",
       "drawOrderHint": 5,
@@ -127,12 +130,12 @@
       "src": "public/hair_back.png"
     },
     "hair_front": {
-      "w": 418,
-      "h": 264,
+      "w": 92,
+      "h": 47,
       "parent": "head_base",
       "pivot": [
-        209,
-        32
+        34,
+        -3
       ],
       "motion": "procedural-mesh-sway",
       "drawOrderHint": 40,
@@ -154,12 +157,12 @@
       "src": "public/hair_front.png"
     },
     "hair_side_l": {
-      "w": 247,
-      "h": 338,
+      "w": 203,
+      "h": 268,
       "parent": "head_base",
       "pivot": [
-        124,
-        20
+        140,
+        46
       ],
       "motion": "procedural-mesh-sway",
       "drawOrderHint": 35,
@@ -181,12 +184,12 @@
       "src": "public/hair_side_l.png"
     },
     "hair_side_r": {
-      "w": 266,
-      "h": 339,
+      "w": 235,
+      "h": 284,
       "parent": "head_base",
       "pivot": [
-        133,
-        20
+        215,
+        62
       ],
       "motion": "procedural-mesh-sway",
       "drawOrderHint": 35,
@@ -208,20 +211,20 @@
       "src": "public/hair_side_r.png"
     },
     "arm_upper_r": {
-      "w": 124,
-      "h": 164,
+      "w": 122,
+      "h": 151,
       "parent": "torso",
       "pivot": [
-        51,
-        51
+        58,
+        30
       ],
       "motion": "discrete-crossfade",
       "drawOrderHint": 20,
       "parentAnchor": "shoulder_r",
       "anchors": {
         "elbow": [
-          73,
-          113
+          80,
+          92
         ]
       },
       "motionParams": {
@@ -239,24 +242,23 @@
         "forward": {},
         "back": {}
       },
-      "defaultState": "rest",
-      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+      "defaultState": "rest"
     },
     "arm_lower_r": {
-      "w": 122,
-      "h": 140,
+      "w": 140,
+      "h": 157,
       "parent": "arm_upper_r",
       "pivot": [
-        50,
-        89
+        59,
+        98
       ],
       "motion": "procedural-mesh-bend",
       "drawOrderHint": 21,
       "parentAnchor": "elbow",
       "anchors": {
         "wrist": [
-          71,
-          51
+          80,
+          59
         ]
       },
       "motionParams": {
@@ -268,16 +270,15 @@
         "blendMarginPx": 50
       },
       "note": "肘の関節メッシュ変形(C2.5、頂点スキニングでarm_upperとの継ぎ目を無くす)",
-      "src": "public/arm_lower_r.png",
-      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+      "src": "public/arm_lower_r.png"
     },
     "hand_r": {
-      "w": 125,
-      "h": 125,
+      "w": 49,
+      "h": 48,
       "parent": "arm_lower_r",
       "pivot": [
-        63,
-        63
+        -16,
+        34
       ],
       "motion": "discrete-crossfade",
       "drawOrderHint": 22,
@@ -287,24 +288,23 @@
           "src": "public/hand_r.png"
         }
       },
-      "defaultState": "open",
-      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+      "defaultState": "open"
     },
     "arm_upper_l": {
-      "w": 125,
-      "h": 185,
+      "w": 88,
+      "h": 129,
       "parent": "torso",
       "pivot": [
-        -54,
-        40
+        67,
+        8
       ],
       "motion": "discrete-crossfade",
       "drawOrderHint": 42,
       "parentAnchor": "shoulder_l",
       "anchors": {
         "elbow": [
-          -76,
-          102
+          45,
+          70
         ]
       },
       "motionParams": {
@@ -325,20 +325,20 @@
       "defaultState": "rest"
     },
     "arm_lower_l": {
-      "w": 140,
-      "h": 142,
+      "w": 157,
+      "h": 159,
       "parent": "arm_upper_l",
       "pivot": [
-        89,
-        51
+        98,
+        59
       ],
       "motion": "procedural-mesh-bend",
       "drawOrderHint": 43,
       "parentAnchor": "elbow",
       "anchors": {
         "wrist": [
-          51,
-          91
+          59,
+          99
         ]
       },
       "motionParams": {
@@ -350,28 +350,26 @@
         "blendMarginPx": 50
       },
       "note": "肘の関節メッシュ変形(C2.5、頂点スキニングでarm_upperとの継ぎ目を無くす)",
-      "src": "public/arm_lower_l.png",
-      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+      "src": "public/arm_lower_l.png"
     },
     "leg_upper_r": {
-      "w": 129,
-      "h": 213,
+      "w": 146,
+      "h": 231,
       "parent": "torso",
       "pivot": [
-        51,
-        51
+        59,
+        59
       ],
       "motion": "static-cutout",
       "drawOrderHint": 12,
       "parentAnchor": "hip_r",
       "anchors": {
         "knee": [
-          78,
-          162
+          86,
+          171
         ]
       },
-      "src": "public/leg_upper_r.png",
-      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+      "src": "public/leg_upper_r.png"
     },
     "leg_lower_r": {
       "w": 150,
@@ -391,32 +389,31 @@
       "src": "public/leg_lower_r.png"
     },
     "leg_upper_l": {
-      "w": 131,
-      "h": 213,
+      "w": 118,
+      "h": 204,
       "parent": "torso",
       "pivot": [
-        80,
-        51
+        58,
+        33
       ],
       "motion": "static-cutout",
       "drawOrderHint": 14,
       "parentAnchor": "hip_l",
       "anchors": {
         "knee": [
-          51,
-          162
+          28,
+          144
         ]
       },
-      "src": "public/leg_upper_l.png",
-      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+      "src": "public/leg_upper_l.png"
     },
     "leg_lower_l": {
-      "w": 142,
-      "h": 269,
+      "w": 114,
+      "h": 257,
       "parent": "leg_upper_l",
       "pivot": [
-        80,
-        63
+        70,
+        41
       ],
       "motion": "procedural-mesh-bend",
       "drawOrderHint": 15,
@@ -425,16 +422,15 @@
         "blendMarginPx": 60
       },
       "note": "膝の関節メッシュ変形(C2.5、頂点スキニングでleg_upperとの継ぎ目を無くす)",
-      "src": "public/leg_lower_l.png",
-      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+      "src": "public/leg_lower_l.png"
     },
     "hand_l": {
-      "w": 125,
-      "h": 125,
+      "w": 77,
+      "h": 72,
       "parent": "arm_lower_l",
       "pivot": [
-        63,
-        63
+        40,
+        27
       ],
       "motion": "discrete-crossfade",
       "drawOrderHint": 44,
@@ -444,8 +440,26 @@
           "src": "public/hand_l.png"
         }
       },
-      "defaultState": "open",
-      "_comment": "QC不合格のまま採用(要目視確認、2026-07-23実生成デモ)"
+      "defaultState": "open"
+    },
+    "cape": {
+      "w": 152,
+      "h": 203,
+      "parent": "torso",
+      "pivot": [
+        138,
+        27
+      ],
+      "motion": "procedural-mesh-sway",
+      "drawOrderHint": 8,
+      "parentAnchor": "cape_root",
+      "motionParams": {
+        "followRatio": 0,
+        "freqHz": 0.35,
+        "phase": -0.3,
+        "ampRad": 0.05
+      },
+      "src": "public/cape.png"
     },
     "eye_l": {
       "w": 34,
@@ -524,6 +538,7 @@
   "drawOrder": [
     "body_pose",
     "hair_back",
+    "cape",
     "torso",
     "leg_upper_r",
     "leg_lower_r",
