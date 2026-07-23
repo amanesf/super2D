@@ -7,7 +7,7 @@
 
   const KEY_STORAGE = "s2d_gemini_api_key";
   const MODEL_STORAGE = "s2d_gemini_model";
-  const DEFAULT_MODEL = "gemini-3.1-flash-lite-image"; // Nano Banana 2 Lite。低コスト・低レイテンシでパーツ数の多い本パイプラインに合う
+  const DEFAULT_MODEL = "gemini-3.1-flash-image"; // Nano Banana 2(lite無し版)。2026-07-23実API検証でlite版は位置/スケールのズレ・指定外要素の写り込みが高頻度(fixtures/gemini-verification-2026-07-23参照)で、価格差(1K画像1枚あたり約2倍)より品質を優先
   const CALL_LOG_STORAGE = "s2d_gemini_call_log";
   const MAX_CALLS_PER_SESSION = 200; // 誤操作による無限リトライ等での爆発課金を防ぐ上限
 
