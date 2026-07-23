@@ -67,6 +67,12 @@
   .state-tab-panel.active { display: block; }
   .pose-hint { font-size: 11.5px; color: #9aa3ad; margin: 0 0 8px; line-height: 1.6; }
   button.active-family { border-color: #6ee7b7; color: #6ee7b7; }
+  .sample-picker { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
+  .sample-picker a {
+    font-size: 12.5px; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid #3c4049; background: #2a2d34; color: #9aa3ad; text-decoration: none;
+  }
+  .sample-picker a.active { color: #6ee7b7; border-color: #6ee7b7; background: #263229; }
 </style>
 </head>
 <body>
@@ -75,6 +81,10 @@
   <p class="note">
     characters/&lt;id&gt;/を丸ごとZIP化したファイルをこのページにドロップすると読み込めます。
   </p>
+  <nav class="sample-picker" id="sample-picker">
+    <a href="?character=placeholder-zero">プレースホルダー(円・四角)</a>
+    <a href="?character=zero-front-demo">実生成サンプル(前面のみ、2026-07-23)</a>
+  </nav>
   <div class="stage-wrap">
     <canvas id="stage" width="600" height="760"></canvas>
   </div>
@@ -106,5 +116,16 @@
 <script src="js/vendor/jszip.min.js"></script>
 <script src="js/validate.js"></script>
 <script src="js/viewer.js"></script>
+<script>
+  // サンプル切替ナビの現在地ハイライト(?characterクエリのみを見る単純な表示、
+  // 状態は持たない)。
+  (function () {
+    const current = new URLSearchParams(window.location.search).get("character") || "placeholder-zero";
+    document.querySelectorAll("#sample-picker a").forEach((a) => {
+      const href = new URL(a.getAttribute("href"), window.location.href);
+      if (href.searchParams.get("character") === current) a.classList.add("active");
+    });
+  })();
+</script>
 </body>
 </html>
