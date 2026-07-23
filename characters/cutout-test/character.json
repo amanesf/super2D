@@ -1,0 +1,135 @@
+{
+  "format": "super2d-character",
+  "formatVersion": 1,
+  "_comment": "切り抜き方式の最小実証(torso+head_baseのみ、マスター実画素、Gemini不使用)。2026-07-23",
+  "canvasStandard": [
+    1024,
+    1024
+  ],
+  "rootAnchor": [
+    300,
+    332
+  ],
+  "parts": {
+    "torso": {
+      "src": "public/torso.png",
+      "w": 90,
+      "h": 151,
+      "parent": null,
+      "pivot": [
+        45,
+        143
+      ],
+      "anchors": {
+        "neck": [
+          45,
+          0
+        ]
+      },
+      "motion": "procedural-breathe",
+      "drawOrderHint": 10,
+      "motionParams": {
+        "freqHz": 1.1,
+        "ampScaleX": 0.006,
+        "ampScaleY": 0.012
+      }
+    },
+    "head_base": {
+      "w": 122,
+      "h": 142,
+      "parent": "torso",
+      "parentAnchor": "neck",
+      "pivot": [
+        66,
+        130
+      ],
+      "motion": "procedural-sway",
+      "drawOrderHint": 30,
+      "states": {
+        "neutral": {
+          "src": "public/head_base.png"
+        }
+      },
+      "defaultState": "neutral",
+      "motionParams": {
+        "freqHz": 0.6,
+        "ampRad": 0.035
+      }
+    },
+    "body_pose": {
+      "w": 1024,
+      "h": 1024,
+      "parent": null,
+      "pivot": [
+        512,
+        512
+      ],
+      "motion": "sprite-select",
+      "states": {
+        "rig": {
+          "isRig": true
+        }
+      },
+      "defaultState": "rig",
+      "drawOrderHint": 0
+    },
+    "eye_l": {
+      "w": 10,
+      "h": 10,
+      "parent": "torso",
+      "parentAnchor": "neck",
+      "pivot": [
+        5,
+        5
+      ],
+      "motion": "discrete-crossfade",
+      "states": {
+        "open": {},
+        "closed": {}
+      },
+      "defaultState": "open",
+      "drawOrderHint": 50
+    },
+    "eye_r": {
+      "w": 10,
+      "h": 10,
+      "parent": "torso",
+      "parentAnchor": "neck",
+      "pivot": [
+        5,
+        5
+      ],
+      "motion": "discrete-crossfade",
+      "states": {
+        "open": {},
+        "closed": {}
+      },
+      "defaultState": "open",
+      "drawOrderHint": 50
+    },
+    "mouth": {
+      "w": 10,
+      "h": 10,
+      "parent": "torso",
+      "parentAnchor": "neck",
+      "pivot": [
+        5,
+        5
+      ],
+      "motion": "discrete-crossfade",
+      "states": {
+        "rest": {}
+      },
+      "defaultState": "rest",
+      "drawOrderHint": 51
+    }
+  },
+  "drawOrder": [
+    "body_pose",
+    "torso",
+    "head_base",
+    "eye_l",
+    "eye_r",
+    "mouth"
+  ]
+}
