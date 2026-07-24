@@ -11,9 +11,9 @@
 </style>
 </head>
 <body>
-<h2>前髪・サイド髪ゆれサンプル</h2>
-<p>顔(土台レイヤー)は完全固定。前髪は「顔の上を動く別レイヤー」として重ねて描画し、<br>
-サイド髪は土台と同じメッシュ上でスキニングする(前髪だけ顔と重なって動くため分離が必要だった)。</p>
+<h2>首振り+前髪・サイド髪ゆれサンプル</h2>
+<p>頭が首を中心にゆっくり向きを変え、前髪・サイド髪もそれに追従しつつ独自の物理揺れが乗る(親子構造)。<br>
+前髪は「顔の上を動く別レイヤー」として重ねて描画し、サイド髪は土台と同じメッシュ上でスキニングする。</p>
 <canvas id="c" width="600" height="600"></canvas>
 <div id="status">読み込み中...</div>
 <p><a href="../index.html">← 成果物一覧に戻る</a></p>
@@ -40,6 +40,9 @@ const LAYERS = [
   { texture: "assets/hair_front_overlay.png", activeChains: [1], hasAlpha: true },
 ];
 const GRID = 160; // グリッド分割数(輪郭の曲線に沿えるよう細分化)
+// 首振り(頭のyaw回転)パラメータ。頭が回るとその上の髪(前髪・サイド髪)も
+// 一緒に回り(親子関係)、さらに髪自体の物理揺れがその上に乗る。
+const HEAD_TURN = { freqHz: 0.12, ampRad: 0.26 }; // 約15度、ゆっくり首を振る
 
 function loadImage(src) {
   return new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src; });
@@ -65,11 +68,11 @@ async function main() {
     const x = Math.min(off.width - 1, Math.max(0, Math.round(px)));
     const y = Math.min(off.height - 1, Math.max(0, Math.round(py)));
     const i = (y * off.width + x) * 4;
-    return { chainId: weightData[i], weight: weightData[i + 1] / 255 };
+    return { chainId: weightData[i], weight: weightData[i + 1] / 255, headWeight: weightData[i + 2] / 255 };
   }
 
   // グリッド頂点生成(全レイヤー共通、位置はクリップ空間-1..1、UVは0..1)
-  const positions = [], uvs = [], chainIds = [], weights = [];
+  const positions = [], uvs = [], chainIds = [], weights = [], headWeights = [];
   const indices = [];
   for (let gy = 0; gy <= GRID; gy++) {
     for (let gx = 0; gx <= GRID; gx++) {
@@ -77,9 +80,10 @@ async function main() {
       const px = u * CANVAS_SIZE, py = v * CANVAS_SIZE;
       positions.push(u * 2 - 1, 1 - v * 2); // clip space、Yは上が+1なので反転
       uvs.push(u, v);
-      const { chainId, weight } = sampleWeight(px, py);
+      const { chainId, weight, headWeight } = sampleWeight(px, py);
       chainIds.push(chainId);
       weights.push(weight);
+      headWeights.push(headWeight);
     }
   }
   const stride = GRID + 1;
@@ -98,15 +102,21 @@ async function main() {
     pivots[c.id * 2] = u * 2 - 1;
     pivots[c.id * 2 + 1] = 1 - v * 2;
   }
+  // 首のピボット(頭のyaw回転の中心)
+  const neckU = chainsRes.neckPivot.x / CANVAS_SIZE, neckV = chainsRes.neckPivot.y / CANVAS_SIZE;
+  const headPivot = [neckU * 2 - 1, 1 - neckV * 2];
 
   const vsSrc = `
     attribute vec2 aPos;
     attribute vec2 aUV;
     attribute float aChainId;
     attribute float aWeight;
+    attribute float aHeadWeight;
     uniform vec2 uPivots[5];
     uniform float uAngles[5];
     uniform float uActiveMask[5]; // このレイヤーで動かしてよいchainIdは1、それ以外は0
+    uniform vec2 uHeadPivot;
+    uniform float uHeadAngle;
     varying vec2 vUV;
     void main() {
       int id = int(aChainId + 0.5);
@@ -118,9 +128,19 @@ async function main() {
         if (id == i && uActiveMask[i] > 0.5) { pivot = uPivots[i]; angle = uAngles[i] * aWeight; }
       }
       if (angle != 0.0) {
+        // 子(髪の物理揺れ): 自身のroot(pivot)を中心にまず回す
         float s = sin(angle), c = cos(angle);
         vec2 d = pos - pivot;
         pos = pivot + vec2(d.x * c - d.y * s, d.x * s + d.y * c);
+      }
+      if (aHeadWeight > 0.001) {
+        // 親(首振り): 上で求めた位置を、さらに首を中心に回す。
+        // 髪のroot自体も首の周りに一緒について回るので、頭が向きを
+        // 変えると髪もそれに追従する。
+        float ha = uHeadAngle * aHeadWeight;
+        float s2 = sin(ha), c2 = cos(ha);
+        vec2 d2 = pos - uHeadPivot;
+        pos = uHeadPivot + vec2(d2.x * c2 - d2.y * s2, d2.x * s2 + d2.y * c2);
       }
       gl_Position = vec4(pos, 0.0, 1.0);
       vUV = aUV;
@@ -160,6 +180,7 @@ async function main() {
   makeBuffer(uvs, 2, gl.getAttribLocation(prog, "aUV"));
   makeBuffer(chainIds, 1, gl.getAttribLocation(prog, "aChainId"));
   makeBuffer(weights, 1, gl.getAttribLocation(prog, "aWeight"));
+  makeBuffer(headWeights, 1, gl.getAttribLocation(prog, "aHeadWeight"));
 
   const idxBuf = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
@@ -186,6 +207,9 @@ async function main() {
   const uAnglesLoc = gl.getUniformLocation(prog, "uAngles");
   const uActiveMaskLoc = gl.getUniformLocation(prog, "uActiveMask");
   const uTexLoc = gl.getUniformLocation(prog, "uTex");
+  const uHeadPivotLoc = gl.getUniformLocation(prog, "uHeadPivot");
+  gl.uniform2fv(uHeadPivotLoc, headPivot);
+  const uHeadAngleLoc = gl.getUniformLocation(prog, "uHeadAngle");
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
@@ -211,6 +235,9 @@ async function main() {
 
     const angles = computeAngles(simTimeMs / 1000);
     gl.uniform1fv(uAnglesLoc, angles);
+    const tSec = simTimeMs / 1000;
+    const headAngle = Math.sin(tSec * HEAD_TURN.freqHz * Math.PI * 2) * HEAD_TURN.ampRad;
+    gl.uniform1f(uHeadAngleLoc, headAngle);
 
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.96, 0.96, 0.96, 1);
