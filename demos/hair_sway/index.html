@@ -26,12 +26,17 @@ if (!gl) { statusEl.textContent = "WebGL未対応"; throw new Error("no webgl");
 // 房ごとのアニメーションパラメータ(PLAN.md「前髪・サイド髪の設計」節)
 // freqHz: 揺れの周波数, ampRad: 揺れの最大角度(ラジアン), phase: 位相
 // hair_frontは中央2分割すると分け目が開閉する不自然な見た目になったため
-// 1本のチェーンに統合した(所要修正、2026-07-24)。毛先までの距離が
-// サイド髪より短く同じ角度でも動く距離(px)が小さいため、振幅を大きめにする。
+// 1本のチェーンに統合した(所要修正、2026-07-24)。
+// 髪の揺れは首振りと無関係な独立周期運動だと「頭の動きと連動していない」
+// バグになる(実際に指摘・確認)。頭の角速度に反応してバネ的に遅れて
+// 追従する二次揺れ(ジグルボーン方式)に変更し、頭が止まっている間だけ
+// 小さな自発ゆらぎ(idle)を残す。
 const CHAIN_PARAMS = {
-  1: { name: "hair_front", freqHz: 0.85, ampRad: 0.16, phase: 0.0 },
-  2: { name: "hair_side_l", freqHz: 0.55, ampRad: 0.2, phase: 0.4 },
-  3: { name: "hair_side_r", freqHz: 0.6, ampRad: 0.2, phase: 2.3 },
+  // lagGain: 頭の角速度への反応の強さ  stiffness/damping: バネの硬さ・減衰
+  // idleAmp/idleFreqHz/idlePhase: 頭が止まっている間の小さな自発ゆらぎ
+  1: { name: "hair_front", lagGain: 0.35, stiffness: 90, damping: 11, idleAmp: 0.02, idleFreqHz: 0.85, idlePhase: 0.0 },
+  2: { name: "hair_side_l", lagGain: 0.9, stiffness: 35, damping: 6, idleAmp: 0.05, idleFreqHz: 0.55, idlePhase: 0.4 },
+  3: { name: "hair_side_r", lagGain: 0.9, stiffness: 35, damping: 6, idleAmp: 0.05, idleFreqHz: 0.6, idlePhase: 2.3 },
 };
 // レイヤー構成: baseは顔・胴・サイド髪(chain2,3のみ可動)、overlayは前髪(chain1)を
 // 透明背景で重ねて独立に動かす。前髪がどれだけ揺れても顔のメッシュは歪まない。
@@ -213,30 +218,54 @@ async function main() {
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-  // 固定タイムステップ(120Hzサブステップ、PLAN②節の既定方針)+描画側補間
-  let simTimeMs = 0;
-  let lastFrameMs = performance.now();
+  // 頭の角度は時間の解析関数として求まるので、角速度も微分で厳密に計算できる。
+  function headAngleAt(tSec) {
+    return Math.sin(tSec * HEAD_TURN.freqHz * Math.PI * 2) * HEAD_TURN.ampRad;
+  }
+  function headAngularVelocityAt(tSec) {
+    const w = HEAD_TURN.freqHz * Math.PI * 2;
+    return Math.cos(tSec * w) * HEAD_TURN.ampRad * w;
+  }
 
-  function computeAngles(tSec) {
-    const angles = [0, 0, 0, 0, 0];
+  // 髪チェーンごとのバネ状態(フレームをまたいで保持)
+  const chainState = {};
+  for (const idStr of Object.keys(CHAIN_PARAMS)) chainState[idStr] = { angle: 0, vel: 0 };
+
+  // 固定タイムステップ(120Hzサブステップ、PLAN②節の既定方針)+描画側補間。
+  // バネ積分は可変dtだと発散・不安定になりやすいため固定刻みが必須。
+  const SUB_DT = 1 / 120;
+  let simTimeSec = 0;
+  let lastFrameMs = performance.now();
+  let accumulatorSec = 0;
+
+  function stepChains(tSec) {
+    const angularVel = headAngularVelocityAt(tSec);
     for (const idStr of Object.keys(CHAIN_PARAMS)) {
-      const id = Number(idStr);
-      const p = CHAIN_PARAMS[id];
-      angles[id] = Math.sin(tSec * p.freqHz * Math.PI * 2 + p.phase) * p.ampRad;
+      const p = CHAIN_PARAMS[idStr];
+      const st = chainState[idStr];
+      const idleTarget = Math.sin(tSec * p.idleFreqHz * Math.PI * 2 + p.idlePhase) * p.idleAmp;
+      const target = -angularVel * p.lagGain + idleTarget;
+      const accel = p.stiffness * (target - st.angle) - p.damping * st.vel;
+      st.vel += accel * SUB_DT;
+      st.angle += st.vel * SUB_DT;
     }
-    return angles;
   }
 
   function frame(nowMs) {
-    let dt = nowMs - lastFrameMs;
+    let dt = (nowMs - lastFrameMs) / 1000;
     lastFrameMs = nowMs;
-    if (dt > 250) dt = 250; // タブ非表示復帰等の巨大dt対策
-    simTimeMs += dt;
+    if (dt > 0.25) dt = 0.25; // タブ非表示復帰等の巨大dt対策
+    accumulatorSec += dt;
+    while (accumulatorSec >= SUB_DT) {
+      simTimeSec += SUB_DT;
+      stepChains(simTimeSec);
+      accumulatorSec -= SUB_DT;
+    }
 
-    const angles = computeAngles(simTimeMs / 1000);
+    const angles = [0, 0, 0, 0, 0];
+    for (const idStr of Object.keys(CHAIN_PARAMS)) angles[Number(idStr)] = chainState[idStr].angle;
     gl.uniform1fv(uAnglesLoc, angles);
-    const tSec = simTimeMs / 1000;
-    const headAngle = Math.sin(tSec * HEAD_TURN.freqHz * Math.PI * 2) * HEAD_TURN.ampRad;
+    const headAngle = headAngleAt(simTimeSec);
     gl.uniform1f(uHeadAngleLoc, headAngle);
 
     gl.viewport(0, 0, canvas.width, canvas.height);
