@@ -30,7 +30,7 @@ const CHAIN_PARAMS = {
   3: { name: "hair_side_l", freqHz: 0.55, ampRad: 0.12, phase: 0.4 },
   4: { name: "hair_side_r", freqHz: 0.6, ampRad: 0.12, phase: 2.3 },
 };
-const GRID = 96; // グリッド分割数
+const GRID = 160; // グリッド分割数(輪郭の曲線に沿えるよう細分化)
 
 function loadImage(src) {
   return new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src; });
