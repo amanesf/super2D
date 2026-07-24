@@ -34,7 +34,10 @@ const CHAIN_PARAMS = {
   // 世界座標で真下、0=頭に完全追従して傾かない)
   // stiffness/damping: 髪自体のバネの硬さ・減衰
   // idleAmp/idleFreqHz/idlePhase: 頭が止まっている間の小さな自発ゆらぎ
-  1: { name: "hair_front", gravityGain: 0.7, stiffness: 55, damping: 7, idleAmp: 0.02, idleFreqHz: 0.85, idlePhase: 0.0 },
+  // 前髪は回転の性質上、動く範囲を広げるほど「土台の穴」も広げる必要があり
+  // 常に縁がぼやけて見える問題があった(実際に発生・確認)。動きの
+  // クリーンさを優先し、振れ幅を抑える。
+  1: { name: "hair_front", gravityGain: 0.18, stiffness: 55, damping: 7, idleAmp: 0.015, idleFreqHz: 0.85, idlePhase: 0.0 },
   2: { name: "hair_side_l", gravityGain: 1.0, stiffness: 18, damping: 3.5, idleAmp: 0.05, idleFreqHz: 0.55, idlePhase: 0.4 },
   3: { name: "hair_side_r", gravityGain: 1.0, stiffness: 18, damping: 3.5, idleAmp: 0.05, idleFreqHz: 0.6, idlePhase: 2.3 },
 };
