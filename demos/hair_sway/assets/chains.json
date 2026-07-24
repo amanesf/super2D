@@ -1,0 +1,37 @@
+{
+  "canvasSize": 1024,
+  "chains": {
+    "hair_front_L": {
+      "id": 1,
+      "count": 4018,
+      "top": 59,
+      "bottom": 164,
+      "rootX": 500.1829268292683,
+      "rootY": 59
+    },
+    "hair_front_R": {
+      "id": 2,
+      "count": 3945,
+      "top": 59,
+      "bottom": 159,
+      "rootX": 525.506329113924,
+      "rootY": 59
+    },
+    "hair_side_l": {
+      "id": 3,
+      "count": 10484,
+      "top": 75,
+      "bottom": 280,
+      "rootX": 476.6363636363636,
+      "rootY": 75
+    },
+    "hair_side_r": {
+      "id": 4,
+      "count": 2407,
+      "top": 115,
+      "bottom": 240,
+      "rootX": 574.3076923076923,
+      "rootY": 115
+    }
+  }
+}

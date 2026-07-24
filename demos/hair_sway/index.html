@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>髪ゆれサンプル(共有テクスチャ+スキニング検証)</title>
+<style>
+  body { background: #1a1a1a; color: #eee; font-family: sans-serif; text-align: center; }
+  canvas { background: #f5f5f5; border-radius: 8px; margin-top: 12px; }
+  #status { font-size: 13px; color: #999; margin-top: 8px; }
+  a { color: #8cf; }
+</style>
+</head>
+<body>
+<h2>前髪・サイド髪ゆれサンプル</h2>
+<p>マスター画像1枚をそのまま使い、切り出さずにWebGLメッシュで前髪・サイド髪だけを揺らしている(B方式の検証)。</p>
+<canvas id="c" width="600" height="600"></canvas>
+<div id="status">読み込み中...</div>
+<p><a href="../index.html">← 成果物一覧に戻る</a></p>
+<script>
+const statusEl = document.getElementById("status");
+const canvas = document.getElementById("c");
+const gl = canvas.getContext("webgl", { alpha: false });
+if (!gl) { statusEl.textContent = "WebGL未対応"; throw new Error("no webgl"); }
+
+// 房ごとのアニメーションパラメータ(PLAN.md「前髪・サイド髪の設計」節)
+// freqHz: 揺れの周波数, ampRad: 揺れの最大角度(ラジアン), phase: 位相
+const CHAIN_PARAMS = {
+  1: { name: "hair_front_L", freqHz: 0.9, ampRad: 0.05, phase: 0.0 },
+  2: { name: "hair_front_R", freqHz: 0.95, ampRad: 0.05, phase: 1.1 },
+  3: { name: "hair_side_l", freqHz: 0.55, ampRad: 0.12, phase: 0.4 },
+  4: { name: "hair_side_r", freqHz: 0.6, ampRad: 0.12, phase: 2.3 },
+};
+const GRID = 96; // グリッド分割数
+
+function loadImage(src) {
+  return new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src; });
+}
+
+async function main() {
+  statusEl.textContent = "アセット読み込み中...";
+  const [masterImg, weightImg, chainsRes] = await Promise.all([
+    loadImage("assets/master.png"),
+    loadImage("assets/weightmap.png"),
+    fetch("assets/chains.json").then((r) => r.json()),
+  ]);
+  const CANVAS_SIZE = chainsRes.canvasSize;
+
+  // weightmapの画素を読む(CPU側、頂点属性の事前計算用)
+  const off = document.createElement("canvas");
+  off.width = weightImg.width; off.height = weightImg.height;
+  const octx = off.getContext("2d");
+  octx.drawImage(weightImg, 0, 0);
+  const weightData = octx.getImageData(0, 0, off.width, off.height).data;
+
+  function sampleWeight(px, py) {
+    const x = Math.min(off.width - 1, Math.max(0, Math.round(px)));
+    const y = Math.min(off.height - 1, Math.max(0, Math.round(py)));
+    const i = (y * off.width + x) * 4;
+    return { chainId: weightData[i], weight: weightData[i + 1] / 255 };
+  }
+
+  // グリッド頂点生成(位置はクリップ空間-1..1、UVは0..1)
+  const positions = [], uvs = [], chainIds = [], weights = [];
+  const indices = [];
+  for (let gy = 0; gy <= GRID; gy++) {
+    for (let gx = 0; gx <= GRID; gx++) {
+      const u = gx / GRID, v = gy / GRID;
+      const px = u * CANVAS_SIZE, py = v * CANVAS_SIZE;
+      positions.push(u * 2 - 1, 1 - v * 2); // clip space、Yは上が+1なので反転
+      uvs.push(u, v);
+      const { chainId, weight } = sampleWeight(px, py);
+      chainIds.push(chainId);
+      weights.push(weight);
+    }
+  }
+  const stride = GRID + 1;
+  for (let gy = 0; gy < GRID; gy++) {
+    for (let gx = 0; gx < GRID; gx++) {
+      const i0 = gy * stride + gx, i1 = i0 + 1, i2 = i0 + stride, i3 = i2 + 1;
+      indices.push(i0, i2, i1, i1, i2, i3);
+    }
+  }
+
+  // ルートアンカーをクリップ空間に変換(uniform配列、id0=未使用)
+  const pivots = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // [x0,y0, x1,y1, ... x4,y4]
+  for (const key of Object.keys(chainsRes.chains)) {
+    const c = chainsRes.chains[key];
+    const u = c.rootX / CANVAS_SIZE, v = c.rootY / CANVAS_SIZE;
+    pivots[c.id * 2] = u * 2 - 1;
+    pivots[c.id * 2 + 1] = 1 - v * 2;
+  }
+
+  const vsSrc = `
+    attribute vec2 aPos;
+    attribute vec2 aUV;
+    attribute float aChainId;
+    attribute float aWeight;
+    uniform vec2 uPivots[5];
+    uniform float uAngles[5];
+    varying vec2 vUV;
+    void main() {
+      int id = int(aChainId + 0.5);
+      vec2 pos = aPos;
+      // GLSL ES 1.00は動的配列インデックスに制約があるため分岐で選ぶ
+      vec2 pivot = vec2(0.0);
+      float angle = 0.0;
+      for (int i = 1; i <= 4; i++) {
+        if (id == i) { pivot = uPivots[i]; angle = uAngles[i] * aWeight; }
+      }
+      if (id > 0) {
+        // アスペクト比1:1なのでXY等方に回転してよい
+        float s = sin(angle), c = cos(angle);
+        vec2 d = pos - pivot;
+        pos = pivot + vec2(d.x * c - d.y * s, d.x * s + d.y * c);
+      }
+      gl_Position = vec4(pos, 0.0, 1.0);
+      vUV = aUV;
+    }
+  `;
+  const fsSrc = `
+    precision mediump float;
+    varying vec2 vUV;
+    uniform sampler2D uTex;
+    void main() {
+      gl_FragColor = texture2D(uTex, vUV);
+    }
+  `;
+
+  function compile(type, src) {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh));
+    return sh;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, vsSrc));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fsSrc));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+
+  function makeBuffer(data, size, loc) {
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+  }
+  makeBuffer(positions, 2, gl.getAttribLocation(prog, "aPos"));
+  makeBuffer(uvs, 2, gl.getAttribLocation(prog, "aUV"));
+  makeBuffer(chainIds, 1, gl.getAttribLocation(prog, "aChainId"));
+  makeBuffer(weights, 1, gl.getAttribLocation(prog, "aWeight"));
+
+  const idxBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, masterImg);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+  const uPivotsLoc = gl.getUniformLocation(prog, "uPivots");
+  gl.uniform2fv(uPivotsLoc, pivots);
+
+  const uAnglesLoc = gl.getUniformLocation(prog, "uAngles");
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+  // 固定タイムステップ(120Hzサブステップ、PLAN②節の既定方針)+描画側補間
+  const STEP_MS = 1000 / 120;
+  let simTimeMs = 0;
+  let lastFrameMs = performance.now();
+
+  function computeAngles(tSec) {
+    const angles = [0, 0, 0, 0, 0];
+    for (const idStr of Object.keys(CHAIN_PARAMS)) {
+      const id = Number(idStr);
+      const p = CHAIN_PARAMS[id];
+      angles[id] = Math.sin(tSec * p.freqHz * Math.PI * 2 + p.phase) * p.ampRad;
+    }
+    return angles;
+  }
+
+  function frame(nowMs) {
+    let dt = nowMs - lastFrameMs;
+    lastFrameMs = nowMs;
+    if (dt > 250) dt = 250; // タブ非表示復帰等の巨大dt対策
+    simTimeMs += dt;
+
+    const angles = computeAngles(simTimeMs / 1000);
+    gl.uniform1fv(uAnglesLoc, angles);
+
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.96, 0.96, 0.96, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+
+    requestAnimationFrame(frame);
+  }
+  statusEl.textContent = `頂点数 ${positions.length / 2}、房: ${Object.values(CHAIN_PARAMS).map((p) => p.name).join(", ")}`;
+  requestAnimationFrame(frame);
+}
+
+main().catch((err) => { statusEl.textContent = "エラー: " + err.message; console.error(err); });
+</script>
+</body>
+</html>
