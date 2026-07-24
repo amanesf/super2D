@@ -25,17 +25,19 @@ if (!gl) { statusEl.textContent = "WebGL未対応"; throw new Error("no webgl");
 
 // 房ごとのアニメーションパラメータ(PLAN.md「前髪・サイド髪の設計」節)
 // freqHz: 揺れの周波数, ampRad: 揺れの最大角度(ラジアン), phase: 位相
+// hair_frontは中央2分割すると分け目が開閉する不自然な見た目になったため
+// 1本のチェーンに統合した(所要修正、2026-07-24)。毛先までの距離が
+// サイド髪より短く同じ角度でも動く距離(px)が小さいため、振幅を大きめにする。
 const CHAIN_PARAMS = {
-  1: { name: "hair_front_L", freqHz: 0.9, ampRad: 0.09, phase: 0.0 },
-  2: { name: "hair_front_R", freqHz: 0.95, ampRad: 0.09, phase: 1.1 },
-  3: { name: "hair_side_l", freqHz: 0.55, ampRad: 0.2, phase: 0.4 },
-  4: { name: "hair_side_r", freqHz: 0.6, ampRad: 0.2, phase: 2.3 },
+  1: { name: "hair_front", freqHz: 0.85, ampRad: 0.16, phase: 0.0 },
+  2: { name: "hair_side_l", freqHz: 0.55, ampRad: 0.2, phase: 0.4 },
+  3: { name: "hair_side_r", freqHz: 0.6, ampRad: 0.2, phase: 2.3 },
 };
-// レイヤー構成: baseは顔・胴・サイド髪(chain3,4のみ可動)、overlayは前髪(chain1,2)を
+// レイヤー構成: baseは顔・胴・サイド髪(chain2,3のみ可動)、overlayは前髪(chain1)を
 // 透明背景で重ねて独立に動かす。前髪がどれだけ揺れても顔のメッシュは歪まない。
 const LAYERS = [
-  { texture: "assets/base.png", activeChains: [3, 4], hasAlpha: false },
-  { texture: "assets/hair_front_overlay.png", activeChains: [1, 2], hasAlpha: true },
+  { texture: "assets/base.png", activeChains: [2, 3], hasAlpha: false },
+  { texture: "assets/hair_front_overlay.png", activeChains: [1], hasAlpha: true },
 ];
 const GRID = 160; // グリッド分割数(輪郭の曲線に沿えるよう細分化)
 
