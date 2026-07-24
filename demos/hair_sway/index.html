@@ -12,8 +12,8 @@
 </head>
 <body>
 <h2>首振り+前髪・サイド髪ゆれサンプル</h2>
-<p>頭が首を中心にゆっくり向きを変え、前髪・サイド髪もそれに追従しつつ独自の物理揺れが乗る(親子構造)。<br>
-前髪は「顔の上を動く別レイヤー」として重ねて描画し、サイド髪は土台と同じメッシュ上でスキニングする。</p>
+<p>頭が素早く傾げて数秒静止し、また反対へ素早く傾げる動きを繰り返す。<br>
+髪は頭に追従しつつ重力で世界座標の鉛直下向きに戻ろうとする(頭が傾くほど髪は相対的に傾き戻す)。</p>
 <canvas id="c" width="600" height="600"></canvas>
 <div id="status">読み込み中...</div>
 <p><a href="../index.html">← 成果物一覧に戻る</a></p>
@@ -24,19 +24,19 @@ const gl = canvas.getContext("webgl", { alpha: false });
 if (!gl) { statusEl.textContent = "WebGL未対応"; throw new Error("no webgl"); }
 
 // 房ごとのアニメーションパラメータ(PLAN.md「前髪・サイド髪の設計」節)
-// freqHz: 揺れの周波数, ampRad: 揺れの最大角度(ラジアン), phase: 位相
 // hair_frontは中央2分割すると分け目が開閉する不自然な見た目になったため
 // 1本のチェーンに統合した(所要修正、2026-07-24)。
-// 髪の揺れは首振りと無関係な独立周期運動だと「頭の動きと連動していない」
-// バグになる(実際に指摘・確認)。頭の角速度に反応してバネ的に遅れて
-// 追従する二次揺れ(ジグルボーン方式)に変更し、頭が止まっている間だけ
-// 小さな自発ゆらぎ(idle)を残す。
+// 髪の目標角度は「重力で常に鉛直下向きに戻ろうとする」方式(頭が傾いても
+// 髪は世界座標で下を向こうとする、より物理的に正しい)。頭自身もバネで
+// 動くため、頭の位置変化に髪が自然に遅れて追従する(バネの直列合成)。
 const CHAIN_PARAMS = {
-  // lagGain: 頭の角速度への反応の強さ  stiffness/damping: バネの硬さ・減衰
+  // gravityGain: 重力に引かれて鉛直下向きに戻ろうとする強さ(1=完全に
+  // 世界座標で真下、0=頭に完全追従して傾かない)
+  // stiffness/damping: 髪自体のバネの硬さ・減衰
   // idleAmp/idleFreqHz/idlePhase: 頭が止まっている間の小さな自発ゆらぎ
-  1: { name: "hair_front", lagGain: 0.35, stiffness: 90, damping: 16, idleAmp: 0.02, idleFreqHz: 0.85, idlePhase: 0.0 },
-  2: { name: "hair_side_l", lagGain: 0.9, stiffness: 35, damping: 10, idleAmp: 0.05, idleFreqHz: 0.55, idlePhase: 0.4 },
-  3: { name: "hair_side_r", lagGain: 0.9, stiffness: 35, damping: 10, idleAmp: 0.05, idleFreqHz: 0.6, idlePhase: 2.3 },
+  1: { name: "hair_front", gravityGain: 0.25, stiffness: 90, damping: 16, idleAmp: 0.02, idleFreqHz: 0.85, idlePhase: 0.0 },
+  2: { name: "hair_side_l", gravityGain: 0.8, stiffness: 22, damping: 7, idleAmp: 0.05, idleFreqHz: 0.55, idlePhase: 0.4 },
+  3: { name: "hair_side_r", gravityGain: 0.8, stiffness: 22, damping: 7, idleAmp: 0.05, idleFreqHz: 0.6, idlePhase: 2.3 },
 };
 // レイヤー構成: baseは顔・胴・サイド髪(chain2,3のみ可動)、overlayは前髪(chain1)を
 // 透明背景で重ねて独立に動かす。前髪がどれだけ揺れても顔のメッシュは歪まない。
@@ -45,9 +45,10 @@ const LAYERS = [
   { texture: "assets/hair_front_overlay.png", activeChains: [1], hasAlpha: true },
 ];
 const GRID = 160; // グリッド分割数(輪郭の曲線に沿えるよう細分化)
-// 首振り(頭のyaw回転)パラメータ。頭が回るとその上の髪(前髪・サイド髪)も
-// 一緒に回り(親子関係)、さらに髪自体の物理揺れがその上に乗る。
-const HEAD_TURN = { freqHz: 0.12, ampRad: 0.26 }; // 約15度、ゆっくり首を振る
+// 首振り(頭のyaw回転)パラメータ。周期的な滑らかな往復ではなく、
+// 「素早く傾げる→数秒停止→反対へ素早く傾げる」という間欠的な動きにする。
+// 頭自身もバネ(高剛性=素早い反応)でtargetを追いかける。
+const HEAD_TURN = { ampRad: 0.26, holdSec: 2.8, stiffness: 55, damping: 14 };
 
 function loadImage(src) {
   return new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src; });
@@ -218,14 +219,10 @@ async function main() {
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-  // 頭の角度は時間の解析関数として求まるので、角速度も微分で厳密に計算できる。
-  function headAngleAt(tSec) {
-    return Math.sin(tSec * HEAD_TURN.freqHz * Math.PI * 2) * HEAD_TURN.ampRad;
-  }
-  function headAngularVelocityAt(tSec) {
-    const w = HEAD_TURN.freqHz * Math.PI * 2;
-    return Math.cos(tSec * w) * HEAD_TURN.ampRad * w;
-  }
+  // 頭: 「素早く傾げる→数秒停止→反対へ素早く傾げる」を、高剛性バネで
+  // targetを追いかけることで作る(高stiffness=素早い立ち上がり、
+  // holdSec間隔でtargetの符号を反転)。
+  const headState = { angle: 0, vel: 0, target: HEAD_TURN.ampRad, nextFlipSec: HEAD_TURN.holdSec };
 
   // 髪チェーンごとのバネ状態(フレームをまたいで保持)
   const chainState = {};
@@ -238,13 +235,25 @@ async function main() {
   let lastFrameMs = performance.now();
   let accumulatorSec = 0;
 
+  function stepHead(tSec) {
+    if (tSec >= headState.nextFlipSec) {
+      headState.target = -headState.target;
+      headState.nextFlipSec += HEAD_TURN.holdSec;
+    }
+    const accel = HEAD_TURN.stiffness * (headState.target - headState.angle) - HEAD_TURN.damping * headState.vel;
+    headState.vel += accel * SUB_DT;
+    headState.angle += headState.vel * SUB_DT;
+  }
+
   function stepChains(tSec) {
-    const angularVel = headAngularVelocityAt(tSec);
+    // 髪の目標角度(頭のローカル座標系で)は、重力で世界座標の真下に
+    // 戻ろうとする分だけ頭の傾きを打ち消す方向(-headState.angle)。
+    // gravityGain=1なら完全に世界座標で真下、0なら頭に完全追従。
     for (const idStr of Object.keys(CHAIN_PARAMS)) {
       const p = CHAIN_PARAMS[idStr];
       const st = chainState[idStr];
       const idleTarget = Math.sin(tSec * p.idleFreqHz * Math.PI * 2 + p.idlePhase) * p.idleAmp;
-      const target = -angularVel * p.lagGain + idleTarget;
+      const target = -headState.angle * p.gravityGain + idleTarget;
       const accel = p.stiffness * (target - st.angle) - p.damping * st.vel;
       st.vel += accel * SUB_DT;
       st.angle += st.vel * SUB_DT;
@@ -258,6 +267,7 @@ async function main() {
     accumulatorSec += dt;
     while (accumulatorSec >= SUB_DT) {
       simTimeSec += SUB_DT;
+      stepHead(simTimeSec);
       stepChains(simTimeSec);
       accumulatorSec -= SUB_DT;
     }
@@ -265,8 +275,7 @@ async function main() {
     const angles = [0, 0, 0, 0, 0];
     for (const idStr of Object.keys(CHAIN_PARAMS)) angles[Number(idStr)] = chainState[idStr].angle;
     gl.uniform1fv(uAnglesLoc, angles);
-    const headAngle = headAngleAt(simTimeSec);
-    gl.uniform1f(uHeadAngleLoc, headAngle);
+    gl.uniform1f(uHeadAngleLoc, headState.angle);
 
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.96, 0.96, 0.96, 1);
