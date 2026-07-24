@@ -12,7 +12,8 @@
 </head>
 <body>
 <h2>前髪・サイド髪ゆれサンプル</h2>
-<p>マスター画像1枚をそのまま使い、切り出さずにWebGLメッシュで前髪・サイド髪だけを揺らしている(B方式の検証)。</p>
+<p>顔(土台レイヤー)は完全固定。前髪は「顔の上を動く別レイヤー」として重ねて描画し、<br>
+サイド髪は土台と同じメッシュ上でスキニングする(前髪だけ顔と重なって動くため分離が必要だった)。</p>
 <canvas id="c" width="600" height="600"></canvas>
 <div id="status">読み込み中...</div>
 <p><a href="../index.html">← 成果物一覧に戻る</a></p>
@@ -30,6 +31,12 @@ const CHAIN_PARAMS = {
   3: { name: "hair_side_l", freqHz: 0.55, ampRad: 0.12, phase: 0.4 },
   4: { name: "hair_side_r", freqHz: 0.6, ampRad: 0.12, phase: 2.3 },
 };
+// レイヤー構成: baseは顔・胴・サイド髪(chain3,4のみ可動)、overlayは前髪(chain1,2)を
+// 透明背景で重ねて独立に動かす。前髪がどれだけ揺れても顔のメッシュは歪まない。
+const LAYERS = [
+  { texture: "assets/base.png", activeChains: [3, 4], hasAlpha: false },
+  { texture: "assets/hair_front_overlay.png", activeChains: [1, 2], hasAlpha: true },
+];
 const GRID = 160; // グリッド分割数(輪郭の曲線に沿えるよう細分化)
 
 function loadImage(src) {
@@ -38,10 +45,10 @@ function loadImage(src) {
 
 async function main() {
   statusEl.textContent = "アセット読み込み中...";
-  const [masterImg, weightImg, chainsRes] = await Promise.all([
-    loadImage("assets/master.png"),
+  const [weightImg, chainsRes, ...layerImgs] = await Promise.all([
     loadImage("assets/weightmap.png"),
     fetch("assets/chains.json").then((r) => r.json()),
+    ...LAYERS.map((l) => loadImage(l.texture)),
   ]);
   const CANVAS_SIZE = chainsRes.canvasSize;
 
@@ -59,7 +66,7 @@ async function main() {
     return { chainId: weightData[i], weight: weightData[i + 1] / 255 };
   }
 
-  // グリッド頂点生成(位置はクリップ空間-1..1、UVは0..1)
+  // グリッド頂点生成(全レイヤー共通、位置はクリップ空間-1..1、UVは0..1)
   const positions = [], uvs = [], chainIds = [], weights = [];
   const indices = [];
   for (let gy = 0; gy <= GRID; gy++) {
@@ -97,18 +104,18 @@ async function main() {
     attribute float aWeight;
     uniform vec2 uPivots[5];
     uniform float uAngles[5];
+    uniform float uActiveMask[5]; // このレイヤーで動かしてよいchainIdは1、それ以外は0
     varying vec2 vUV;
     void main() {
       int id = int(aChainId + 0.5);
       vec2 pos = aPos;
-      // GLSL ES 1.00は動的配列インデックスに制約があるため分岐で選ぶ
       vec2 pivot = vec2(0.0);
       float angle = 0.0;
+      // GLSL ES 1.00は動的配列インデックスに制約があるため分岐で選ぶ
       for (int i = 1; i <= 4; i++) {
-        if (id == i) { pivot = uPivots[i]; angle = uAngles[i] * aWeight; }
+        if (id == i && uActiveMask[i] > 0.5) { pivot = uPivots[i]; angle = uAngles[i] * aWeight; }
       }
-      if (id > 0) {
-        // アスペクト比1:1なのでXY等方に回転してよい
+      if (angle != 0.0) {
         float s = sin(angle), c = cos(angle);
         vec2 d = pos - pivot;
         pos = pivot + vec2(d.x * c - d.y * s, d.x * s + d.y * c);
@@ -156,23 +163,31 @@ async function main() {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
 
-  const tex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, masterImg);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  function makeTexture(img) {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    return tex;
+  }
+  const layers = LAYERS.map((l, i) => ({
+    ...l,
+    tex: makeTexture(layerImgs[i]),
+    activeMask: [0, 0, 0, 0, 0].map((_, id) => (l.activeChains.includes(id) ? 1 : 0)),
+  }));
 
   const uPivotsLoc = gl.getUniformLocation(prog, "uPivots");
   gl.uniform2fv(uPivotsLoc, pivots);
-
   const uAnglesLoc = gl.getUniformLocation(prog, "uAngles");
+  const uActiveMaskLoc = gl.getUniformLocation(prog, "uActiveMask");
+  const uTexLoc = gl.getUniformLocation(prog, "uTex");
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
   // 固定タイムステップ(120Hzサブステップ、PLAN②節の既定方針)+描画側補間
-  const STEP_MS = 1000 / 120;
   let simTimeMs = 0;
   let lastFrameMs = performance.now();
 
@@ -198,11 +213,18 @@ async function main() {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.96, 0.96, 0.96, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+
+    for (const layer of layers) {
+      gl.uniform1fv(uActiveMaskLoc, layer.activeMask);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, layer.tex);
+      gl.uniform1i(uTexLoc, 0);
+      gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+    }
 
     requestAnimationFrame(frame);
   }
-  statusEl.textContent = `頂点数 ${positions.length / 2}、房: ${Object.values(CHAIN_PARAMS).map((p) => p.name).join(", ")}`;
+  statusEl.textContent = `頂点数 ${positions.length / 2}、レイヤー数 ${layers.length}、房: ${Object.values(CHAIN_PARAMS).map((p) => p.name).join(", ")}`;
   requestAnimationFrame(frame);
 }
 
