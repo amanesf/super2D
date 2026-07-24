@@ -40,11 +40,16 @@ const CHAIN_PARAMS = {
   2: { name: "hair_side_l", gravityGain: 1.0, stiffness: 18, damping: 3.5, idleAmp: 0.05, idleFreqHz: 0.55, idlePhase: 0.4 },
   3: { name: "hair_side_r", gravityGain: 1.0, stiffness: 18, damping: 3.5, idleAmp: 0.05, idleFreqHz: 0.6, idlePhase: 2.3 },
 };
-// レイヤー構成: baseは顔・胴・サイド髪(chain2,3のみ可動)、overlayは前髪(chain1)を
-// 透明背景で重ねて独立に動かす。前髪がどれだけ揺れても顔のメッシュは歪まない。
+// レイヤー構成: baseは顔・胴(無加工のマスター、髪チェーンは一切動かさない)、
+// 前髪・サイド髪はそれぞれ独立レイヤーとして透明背景で重ねる。
+// サイド髪も当初はbaseと共有メッシュにしていたが、振れ幅を上げた際に
+// 首・胴体メッシュを引きずって歪ませる不具合が実際に発生したため、
+// 前髪と同じ独立オーバーレイ方式に統一した(2026-07-24)。
 const LAYERS = [
-  { texture: "assets/base.png", activeChains: [2, 3], hasAlpha: false },
+  { texture: "assets/base.png", activeChains: [], hasAlpha: false },
   { texture: "assets/hair_front_overlay.png", activeChains: [1], hasAlpha: true },
+  { texture: "assets/hair_side_l_overlay.png", activeChains: [2], hasAlpha: true },
+  { texture: "assets/hair_side_r_overlay.png", activeChains: [3], hasAlpha: true },
 ];
 const GRID = 160; // グリッド分割数(輪郭の曲線に沿えるよう細分化)
 // 首振り(頭のyaw回転)パラメータ。周期的な滑らかな往復ではなく、
