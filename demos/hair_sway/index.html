@@ -5,7 +5,7 @@
 <title>髪ゆれサンプル(共有テクスチャ+スキニング検証)</title>
 <style>
   body { background: #1a1a1a; color: #eee; font-family: sans-serif; text-align: center; }
-  canvas { background: #f5f5f5; border-radius: 8px; margin-top: 12px; }
+  canvas { background: #f5f5f5; border-radius: 8px; margin-top: 12px; width: 600px; height: 600px; }
   #status { font-size: 13px; color: #999; margin-top: 8px; }
   a { color: #8cf; }
 </style>
@@ -34,7 +34,7 @@ const CHAIN_PARAMS = {
   // 世界座標で真下、0=頭に完全追従して傾かない)
   // stiffness/damping: 髪自体のバネの硬さ・減衰
   // idleAmp/idleFreqHz/idlePhase: 頭が止まっている間の小さな自発ゆらぎ
-  1: { name: "hair_front", gravityGain: 0.4, stiffness: 90, damping: 10, idleAmp: 0.02, idleFreqHz: 0.85, idlePhase: 0.0 },
+  1: { name: "hair_front", gravityGain: 0.7, stiffness: 55, damping: 7, idleAmp: 0.02, idleFreqHz: 0.85, idlePhase: 0.0 },
   2: { name: "hair_side_l", gravityGain: 1.0, stiffness: 18, damping: 3.5, idleAmp: 0.05, idleFreqHz: 0.55, idlePhase: 0.4 },
   3: { name: "hair_side_r", gravityGain: 1.0, stiffness: 18, damping: 3.5, idleAmp: 0.05, idleFreqHz: 0.6, idlePhase: 2.3 },
 };
@@ -55,6 +55,13 @@ function loadImage(src) {
 }
 
 async function main() {
+  // 高DPI(Retina等)ディスプレイでの描画ボケ対策: CSS表示サイズ(600px)は
+  // 固定したまま、実際の描画バッファ解像度をdevicePixelRatio分だけ上げる。
+  // これをしないと低解像度バッファがブラウザ側で拡大表示されボケる。
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  canvas.width = Math.round(600 * dpr);
+  canvas.height = Math.round(600 * dpr);
+
   statusEl.textContent = "アセット読み込み中...";
   const [weightImg, chainsRes, ...layerImgs] = await Promise.all([
     loadImage("assets/weightmap.png"),
@@ -123,6 +130,8 @@ async function main() {
     uniform float uActiveMask[5]; // このレイヤーで動かしてよいchainIdは1、それ以外は0
     uniform vec2 uHeadPivot;
     uniform float uHeadAngle;
+    uniform vec2 uCamCenter;
+    uniform float uCamZoom;
     varying vec2 vUV;
     void main() {
       int id = int(aChainId + 0.5);
@@ -148,6 +157,9 @@ async function main() {
         vec2 d2 = pos - uHeadPivot;
         pos = uHeadPivot + vec2(d2.x * c2 - d2.y * s2, d2.x * s2 + d2.y * c2);
       }
+      // カメラ(顔にデフォルトフォーカス): 全ての変形の後に、画面全体を
+      // 顔付近が中心に来るようズーム・平行移動する。
+      pos = (pos - uCamCenter) * uCamZoom;
       gl_Position = vec4(pos, 0.0, 1.0);
       vUV = aUV;
     }
@@ -216,6 +228,18 @@ async function main() {
   const uHeadPivotLoc = gl.getUniformLocation(prog, "uHeadPivot");
   gl.uniform2fv(uHeadPivotLoc, headPivot);
   const uHeadAngleLoc = gl.getUniformLocation(prog, "uHeadAngle");
+
+  // カメラ: デフォルトで顔付近にズームする。首のピボットの少し上
+  // (顔の中心あたり)を画面中央に据え、UV幅0.42相当が画面いっぱいに
+  // 収まるズーム率にする。
+  const camCenterU = neckU, camCenterV = neckV - 0.09;
+  const camCenter = [camCenterU * 2 - 1, 1 - camCenterV * 2];
+  const CAM_ZOOM = 1 / 0.42;
+  const uCamCenterLoc = gl.getUniformLocation(prog, "uCamCenter");
+  gl.uniform2fv(uCamCenterLoc, camCenter);
+  const uCamZoomLoc = gl.getUniformLocation(prog, "uCamZoom");
+  gl.uniform1f(uCamZoomLoc, CAM_ZOOM);
+
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
