@@ -34,9 +34,9 @@ if (!gl) { statusEl.textContent = "WebGL未対応"; throw new Error("no webgl");
 const CHAIN_PARAMS = {
   // lagGain: 頭の角速度への反応の強さ  stiffness/damping: バネの硬さ・減衰
   // idleAmp/idleFreqHz/idlePhase: 頭が止まっている間の小さな自発ゆらぎ
-  1: { name: "hair_front", lagGain: 0.35, stiffness: 90, damping: 11, idleAmp: 0.02, idleFreqHz: 0.85, idlePhase: 0.0 },
-  2: { name: "hair_side_l", lagGain: 0.9, stiffness: 35, damping: 6, idleAmp: 0.05, idleFreqHz: 0.55, idlePhase: 0.4 },
-  3: { name: "hair_side_r", lagGain: 0.9, stiffness: 35, damping: 6, idleAmp: 0.05, idleFreqHz: 0.6, idlePhase: 2.3 },
+  1: { name: "hair_front", lagGain: 0.35, stiffness: 90, damping: 16, idleAmp: 0.02, idleFreqHz: 0.85, idlePhase: 0.0 },
+  2: { name: "hair_side_l", lagGain: 0.9, stiffness: 35, damping: 10, idleAmp: 0.05, idleFreqHz: 0.55, idlePhase: 0.4 },
+  3: { name: "hair_side_r", lagGain: 0.9, stiffness: 35, damping: 10, idleAmp: 0.05, idleFreqHz: 0.6, idlePhase: 2.3 },
 };
 // レイヤー構成: baseは顔・胴・サイド髪(chain2,3のみ可動)、overlayは前髪(chain1)を
 // 透明背景で重ねて独立に動かす。前髪がどれだけ揺れても顔のメッシュは歪まない。
