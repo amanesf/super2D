@@ -34,9 +34,9 @@ const CHAIN_PARAMS = {
   // 世界座標で真下、0=頭に完全追従して傾かない)
   // stiffness/damping: 髪自体のバネの硬さ・減衰
   // idleAmp/idleFreqHz/idlePhase: 頭が止まっている間の小さな自発ゆらぎ
-  1: { name: "hair_front", gravityGain: 0.25, stiffness: 90, damping: 16, idleAmp: 0.02, idleFreqHz: 0.85, idlePhase: 0.0 },
-  2: { name: "hair_side_l", gravityGain: 0.8, stiffness: 22, damping: 7, idleAmp: 0.05, idleFreqHz: 0.55, idlePhase: 0.4 },
-  3: { name: "hair_side_r", gravityGain: 0.8, stiffness: 22, damping: 7, idleAmp: 0.05, idleFreqHz: 0.6, idlePhase: 2.3 },
+  1: { name: "hair_front", gravityGain: 0.4, stiffness: 90, damping: 10, idleAmp: 0.02, idleFreqHz: 0.85, idlePhase: 0.0 },
+  2: { name: "hair_side_l", gravityGain: 1.0, stiffness: 18, damping: 3.5, idleAmp: 0.05, idleFreqHz: 0.55, idlePhase: 0.4 },
+  3: { name: "hair_side_r", gravityGain: 1.0, stiffness: 18, damping: 3.5, idleAmp: 0.05, idleFreqHz: 0.6, idlePhase: 2.3 },
 };
 // レイヤー構成: baseは顔・胴・サイド髪(chain2,3のみ可動)、overlayは前髪(chain1)を
 // 透明背景で重ねて独立に動かす。前髪がどれだけ揺れても顔のメッシュは歪まない。
